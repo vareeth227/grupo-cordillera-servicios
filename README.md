@@ -34,7 +34,13 @@ Contiene los 5 microservicios Spring Boot y el API Gateway con Circuit Breaker y
 
 Abre **PowerShell** en esta carpeta.
 
-**Paso 1 — Construir e iniciar todos los servicios**
+**Paso 1 — Crear la red Docker compartida**
+```powershell
+docker network create cordillera-net
+```
+> Si aparece "already exists", continúa al paso 2.
+
+**Paso 2 — Construir e iniciar todos los servicios**
 ```powershell
 docker-compose -f docker-compose-services.yml up --build -d
 ```
