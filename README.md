@@ -1,5 +1,7 @@
 # Grupo Cordillera — Microservicios y API Gateway
 
+[![CI — Microservicios](https://github.com/vareeth227/grupo-cordillera-servicios/actions/workflows/ci.yml/badge.svg)](https://github.com/vareeth227/grupo-cordillera-servicios/actions/workflows/ci.yml)
+
 Contiene los 5 microservicios Spring Boot y el API Gateway con Circuit Breaker y JWT.
 
 > Las **bases de datos deben estar corriendo** antes de iniciar este repositorio.  
@@ -46,12 +48,12 @@ docker-compose -f docker-compose-services.yml up --build -d
 ```
 > La primera vez tarda entre 5 y 10 minutos mientras Maven descarga dependencias y compila.
 
-**Paso 2 — Ver el estado de los contenedores**
+**Paso 3 — Ver el estado de los contenedores**
 ```powershell
 docker ps
 ```
 
-**Paso 3 — Verificar que el Gateway responde**
+**Paso 4 — Verificar que el Gateway responde**
 
 Abre el navegador en: http://localhost:9090/actuator/health  
 Debe mostrar: `{"status":"UP"}`
@@ -116,6 +118,16 @@ Una vez que todos los servicios están activos, prueba en el navegador:
 | Inventario  | http://localhost:9093/inventario/alertas             |
 | Financiero  | http://localhost:9094/financiero/ingresos            |
 | Clientes    | http://localhost:9095/clientes/activos               |
+
+---
+
+## Pipeline CI/CD
+
+Este repositorio tiene un pipeline de integración continua con **GitHub Actions** que se ejecuta automáticamente en cada `push` a `main`.
+
+El pipeline compila en paralelo los 6 servicios (`mvn package`) y muestra un ✅ si todos pasan o ❌ si alguno falla. El badge en la parte superior de este README refleja el estado del último build.
+
+Ver historial: [Actions → CI — Microservicios](https://github.com/vareeth227/grupo-cordillera-servicios/actions/workflows/ci.yml)
 
 ---
 
