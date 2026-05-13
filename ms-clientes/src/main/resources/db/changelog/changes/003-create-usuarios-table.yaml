@@ -1,0 +1,15 @@
+databaseChangeLog:
+  - changeSet:
+      id: 003-create-usuarios-table
+      author: grupo-cordillera
+      changes:
+        - sql:
+            sql: |
+              CREATE TABLE IF NOT EXISTS usuarios (
+                  id             BIGSERIAL       PRIMARY KEY,
+                  email          VARCHAR(150)    NOT NULL UNIQUE,
+                  password_hash  VARCHAR(255)    NOT NULL,
+                  nombre         VARCHAR(150),
+                  rol            VARCHAR(50),
+                  activo         BOOLEAN         NOT NULL DEFAULT TRUE
+              );

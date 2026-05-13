@@ -1,0 +1,72 @@
+server:
+  port: ${SERVER_PORT:9090}
+
+spring:
+  application:
+    name: api-gateway
+  # Spring Cloud Gateway usa programación reactiva (WebFlux), no servlets
+  main:
+    web-application-type: reactive
+
+# Configuración de Circuit Breaker con Resilience4j
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        # Porcentaje de fallos para abrir el circuito
+        failure-rate-threshold: 50
+        # Número mínimo de llamadas para evaluar el circuito
+        minimum-number-of-calls: 5
+        # Tiempo en estado OPEN antes de intentar HALF_OPEN (segundos)
+        wait-duration-in-open-state: 10s
+        # Llamadas permitidas en estado HALF_OPEN
+        permitted-number-of-calls-in-half-open-state: 3
+        # Tamaño de la ventana deslizante
+        sliding-window-size: 10
+    instances:
+      cb-ventas:
+        base-config: default
+      cb-ecommerce:
+        base-config: default
+      cb-inventario:
+        base-config: default
+      cb-financiero:
+        base-config: default
+      cb-clientes:
+        base-config: default
+
+  timelimiter:
+    configs:
+      default:
+        # Tiempo máximo de espera por respuesta de un microservicio
+        timeout-duration: 3s
+    instances:
+      cb-ventas:
+        base-config: default
+      cb-ecommerce:
+        base-config: default
+      cb-inventario:
+        base-config: default
+      cb-financiero:
+        base-config: default
+      cb-clientes:
+        base-config: default
+
+# Actuator: expone endpoints de salud para monitoreo
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,circuitbreakers
+  endpoint:
+    health:
+      show-details: always
+
+# JWT - mismo secreto que ms-clientes (inyectado via JWT_SECRET en Docker)
+jwt:
+  secret: ${JWT_SECRET:cordillera-jwt-secret-2024-fullstack3-grupo}
+
+logging:
+  level:
+    "[org.springframework.cloud.gateway]": INFO
+    "[com.grupocordillera.gateway]": DEBUG

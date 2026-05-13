@@ -1,0 +1,15 @@
+databaseChangeLog:
+  - changeSet:
+      id: 001-create-pedidos-table
+      author: grupo-cordillera
+      changes:
+        - sql:
+            sql: |
+              CREATE TABLE IF NOT EXISTS pedidos (
+                  id            BIGSERIAL PRIMARY KEY,
+                  cliente_id    BIGINT          NOT NULL,
+                  fecha_pedido  TIMESTAMP       NOT NULL,
+                  estado        VARCHAR(20)     NOT NULL,
+                  total         NUMERIC(12,2)   NOT NULL,
+                  direccion_despacho VARCHAR(255)
+              );

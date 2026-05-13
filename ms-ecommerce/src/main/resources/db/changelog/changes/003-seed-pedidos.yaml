@@ -1,0 +1,21 @@
+databaseChangeLog:
+  - changeSet:
+      id: 003-seed-pedidos
+      author: grupo-cordillera
+      changes:
+        - sql:
+            sql: |
+              INSERT INTO pedidos (id, cliente_id, fecha_pedido, estado, total, direccion_despacho) VALUES
+              (1,  1, '2026-04-15 10:00:00', 'ENTREGADO',  899900, 'Av. Providencia 1234, Providencia, Santiago'),
+              (2,  2, '2026-04-18 14:30:00', 'ENTREGADO',  374750, 'Calle Los Leones 567, Las Condes, Santiago'),
+              (3,  3, '2026-04-20 09:15:00', 'EN_ENVIO',   649900, 'Av. Grecia 890, Ñuñoa, Santiago'),
+              (4,  4, '2026-04-25 11:00:00', 'CONFIRMADO', 189900, 'Gran Avenida 2345, San Miguel, Santiago'),
+              (5,  5, '2026-04-28 15:45:00', 'CONFIRMADO', 260500, 'Av. Vicuña Mackenna 3456, Macul, Santiago'),
+              (6,  1, '2026-05-01 08:30:00', 'EN_ENVIO',   299900, 'Av. Providencia 1234, Providencia, Santiago'),
+              (7,  6, '2026-05-02 12:00:00', 'PENDIENTE',  129700, 'Calle Ñuble 789, Providencia, Santiago'),
+              (8,  7, '2026-05-03 16:20:00', 'PENDIENTE',  299900, 'Av. El Bosque Norte 456, Las Condes, Santiago'),
+              (9,  3, '2026-05-04 10:45:00', 'PENDIENTE',   45900, 'Av. Grecia 890, Ñuñoa, Santiago'),
+              (10, 8, '2026-05-05 14:00:00', 'CANCELADO',  399900, 'Calle Santo Domingo 1234, Santiago Centro')
+              ON CONFLICT (id) DO NOTHING;
+
+              SELECT setval('pedidos_id_seq', (SELECT MAX(id) FROM pedidos));

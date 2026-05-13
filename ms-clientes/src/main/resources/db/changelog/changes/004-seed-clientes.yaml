@@ -1,0 +1,21 @@
+databaseChangeLog:
+  - changeSet:
+      id: 004-seed-clientes
+      author: grupo-cordillera
+      changes:
+        - sql:
+            sql: |
+              INSERT INTO clientes (id, nombre, apellido, email, telefono, fecha_registro, activo) VALUES
+              (1,  'María José',  'González Soto',    'mjose.gonzalez@gmail.com',    '+56912345678', '2024-03-15', true),
+              (2,  'Carlos',      'Martínez Lagos',   'carlos.martinez@hotmail.com', '+56923456789', '2024-05-20', true),
+              (3,  'Valentina',   'López Herrera',    'vlopez@outlook.com',          '+56934567890', '2024-07-08', true),
+              (4,  'Rodrigo',     'Fernández Muñoz',  'rodrigo.f@gmail.com',         '+56945678901', '2024-09-12', true),
+              (5,  'Camila',      'Torres Vega',      'camila.torres@yahoo.com',     '+56956789012', '2024-10-03', true),
+              (6,  'Diego',       'Ramírez Castro',   'diego.ramirez@gmail.com',     '+56967890123', '2024-11-18', true),
+              (7,  'Isidora',     'Sánchez Pérez',    'isidora.s@gmail.com',         '+56978901234', '2025-01-05', true),
+              (8,  'Matías',      'Vargas Rojas',     'mvargas@empresa.cl',          '+56989012345', '2025-02-22', true),
+              (9,  'Sofía',       'Morales Araya',    'sofia.morales@gmail.com',     '+56990123456', '2025-04-14', true),
+              (10, 'Sebastián',   'Reyes Contreras',  'sreyes@gmail.com',            '+56901234567', '2025-06-30', false)
+              ON CONFLICT (id) DO NOTHING;
+
+              SELECT setval('clientes_id_seq', (SELECT MAX(id) FROM clientes));

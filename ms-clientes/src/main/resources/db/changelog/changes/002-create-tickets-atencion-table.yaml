@@ -1,0 +1,20 @@
+databaseChangeLog:
+  - changeSet:
+      id: 002-create-tickets-atencion-table
+      author: grupo-cordillera
+      changes:
+        - sql:
+            sql: |
+              CREATE TABLE IF NOT EXISTS tickets_atencion (
+                  id                BIGSERIAL       PRIMARY KEY,
+                  cliente_id        BIGINT          NOT NULL,
+                  asunto            VARCHAR(200)    NOT NULL,
+                  descripcion       TEXT,
+                  estado            VARCHAR(20)     NOT NULL,
+                  categoria         VARCHAR(50)     NOT NULL,
+                  fecha_creacion    TIMESTAMP       NOT NULL,
+                  fecha_resolucion  TIMESTAMP,
+                  CONSTRAINT fk_ticket_cliente
+                      FOREIGN KEY (cliente_id) REFERENCES clientes(id)
+                      ON DELETE CASCADE
+              );
