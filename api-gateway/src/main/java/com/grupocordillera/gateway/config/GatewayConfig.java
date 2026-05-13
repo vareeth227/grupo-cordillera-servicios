@@ -20,6 +20,11 @@ import java.util.Arrays;
 @Configuration
 public class GatewayConfig {
 
+    // Orígenes permitidos para CORS (separados por coma si hay varios)
+    // En producción distribuida: http://<IP_FRONTEND>:5173
+    @Value("${CORS_ALLOWED_ORIGINS:http://localhost:5173}")
+    private String corsAllowedOrigins;
+
     // URLs de los microservicios inyectadas desde variables de entorno.
     // @Value resuelve ${...} en tiempo de arranque; el valor después de ':' es el default local.
     @Value("${MS_VENTAS_URL:http://localhost:9091}")
@@ -110,7 +115,7 @@ public class GatewayConfig {
     @Bean
     public CorsWebFilter corsWebFilter() {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOriginPatterns(Arrays.asList("http://localhost:5173"));
+        config.setAllowedOriginPatterns(Arrays.asList(corsAllowedOrigins.split(",")));
         config.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(Arrays.asList("*"));
         config.setAllowCredentials(true);

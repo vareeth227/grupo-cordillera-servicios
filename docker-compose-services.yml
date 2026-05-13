@@ -1,7 +1,8 @@
 version: '3.8'
 
 # Docker Compose para todos los microservicios Spring Boot y el API Gateway
-# Requiere que docker-compose-db.yml esté corriendo primero
+# Requiere que docker-compose-db.yml esté corriendo primero (en PC-C)
+# Variables en .env: DB_HOST, CORS_ALLOWED_ORIGINS, JWT_SECRET, POSTGRES_USER, POSTGRES_PASSWORD
 
 services:
   # Microservicio de Ventas - gestión de puntos de venta y transacciones
@@ -11,7 +12,7 @@ services:
       dockerfile: Dockerfile
     container_name: ms-ventas
     environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://db-ventas:5432/db_ventas
+      SPRING_DATASOURCE_URL: jdbc:postgresql://${DB_HOST:-localhost}:5432/db_ventas
       SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-postgres}
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
       SERVER_PORT: 9091
@@ -28,7 +29,7 @@ services:
       dockerfile: Dockerfile
     container_name: ms-ecommerce
     environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://db-ecommerce:5432/db_ecommerce
+      SPRING_DATASOURCE_URL: jdbc:postgresql://${DB_HOST:-localhost}:5433/db_ecommerce
       SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-postgres}
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
       SERVER_PORT: 9092
@@ -47,7 +48,7 @@ services:
       dockerfile: Dockerfile
     container_name: ms-inventario
     environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://db-inventario:5432/db_inventario
+      SPRING_DATASOURCE_URL: jdbc:postgresql://${DB_HOST:-localhost}:5434/db_inventario
       SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-postgres}
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
       SERVER_PORT: 9093
@@ -64,7 +65,7 @@ services:
       dockerfile: Dockerfile
     container_name: ms-financiero
     environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://db-financiero:5432/db_financiero
+      SPRING_DATASOURCE_URL: jdbc:postgresql://${DB_HOST:-localhost}:5435/db_financiero
       SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-postgres}
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
       SERVER_PORT: 9094
@@ -81,7 +82,7 @@ services:
       dockerfile: Dockerfile
     container_name: ms-clientes
     environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://db-clientes:5432/db_clientes
+      SPRING_DATASOURCE_URL: jdbc:postgresql://${DB_HOST:-localhost}:5436/db_clientes
       SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-postgres}
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
       SERVER_PORT: 9095
@@ -106,6 +107,7 @@ services:
       MS_FINANCIERO_URL: http://ms-financiero:9094
       MS_CLIENTES_URL: http://ms-clientes:9095
       JWT_SECRET: ${JWT_SECRET:-cordillera-jwt-secret-2024-fullstack3-grupo}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:5173}
     ports:
       - "9090:9090"
     networks:
@@ -120,5 +122,5 @@ services:
 
 networks:
   cordillera-net:
-    external: true
+    driver: bridge
     name: cordillera-net
