@@ -1,0 +1,306 @@
+version: '3.8'
+
+# Docker Compose optimizado para t3.micro de AWS
+# IMPORTANTE: t3.micro tiene solo 1GB RAM, por lo que:
+# - Solo puedes correr 2-3 servicios a la vez
+# - PostgreSQL consume ~250MB
+# - Cada microservicio consume 128-256MB
+# 
+# Opciones:
+# 1. RDS PostgreSQL externo (recomendado)
+# 2. Ejecutar servicios en rotation
+# 3. Usar ElastiCache para caché
+
+services:
+  # PostgreSQL Database - Base de datos centralizada
+  postgres:
+    image: postgres:16-alpine
+    container_name: postgres-cordillera
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-cordillera2024}
+      # Configuración mínima para t3.micro
+      POSTGRES_INITDB_ARGS: "-c shared_buffers=64MB -c max_connections=50 -c effective_cache_size=128MB"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - cordillera-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # API Gateway
+  api-gateway:
+    build:
+      context: ./api-gateway
+      dockerfile: Dockerfile.optimized
+    image: cordillera/api-gateway:latest
+    container_name: api-gateway
+    environment:
+      SERVER_PORT: 9090
+      SPRING_PROFILES_ACTIVE: production
+      SPRING_LOGGING_LEVEL_ROOT: WARN
+      SPRING_JPA_SHOW_SQL: "false"
+      MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE: health
+      # JVM optimizado para t3.micro
+      JAVA_TOOL_OPTIONS: "-Xms64m -Xmx128m"
+    ports:
+      - "9090:9090"
+    networks:
+      - cordillera-net
+    depends_on:
+      postgres:
+        condition: service_healthy
+      ms-clientes:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9090/actuator/health"]
+      interval: 45s
+      timeout: 10s
+      start_period: 60s
+      retries: 2
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '0.4'
+          memory: 256M
+        reservations:
+          cpus: '0.2'
+          memory: 128M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "2"
+
+  # Microservicio de Clientes (ESENCIAL - mantener activo)
+  ms-clientes:
+    build:
+      context: ./ms-clientes
+      dockerfile: Dockerfile.optimized
+    image: cordillera/ms-clientes:latest
+    container_name: ms-clientes
+    environment:
+      SERVER_PORT: 9095
+      SPRING_PROFILES_ACTIVE: production
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/db_clientes
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-postgres}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-cordillera2024}
+      SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE: 5
+      SPRING_DATASOURCE_HIKARI_MINIMUM_IDLE: 1
+      SPRING_JPA_HIBERNATE_DDL_AUTO: validate
+      JWT_SECRET: ${JWT_SECRET:-cordillera-jwt-secret-2024}
+      SPRING_LOGGING_LEVEL_ROOT: WARN
+      SPRING_JPA_SHOW_SQL: "false"
+      MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE: health
+      JAVA_TOOL_OPTIONS: "-Xms64m -Xmx128m"
+    ports:
+      - "9095:9095"
+    networks:
+      - cordillera-net
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9095/actuator/health"]
+      interval: 45s
+      timeout: 10s
+      start_period: 60s
+      retries: 2
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '0.4'
+          memory: 256M
+        reservations:
+          cpus: '0.2'
+          memory: 128M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "2"
+
+  # Microservicio de Ecommerce
+  ms-ecommerce:
+    build:
+      context: ./ms-ecommerce
+      dockerfile: Dockerfile.optimized
+    image: cordillera/ms-ecommerce:latest
+    container_name: ms-ecommerce
+    environment:
+      SERVER_PORT: 9092
+      SPRING_PROFILES_ACTIVE: production
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/db_ecommerce
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-postgres}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-cordillera2024}
+      SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE: 5
+      SPRING_DATASOURCE_HIKARI_MINIMUM_IDLE: 1
+      SPRING_JPA_HIBERNATE_DDL_AUTO: validate
+      MS_CLIENTES_URL: http://ms-clientes:9095
+      SPRING_LOGGING_LEVEL_ROOT: WARN
+      SPRING_JPA_SHOW_SQL: "false"
+      MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE: health
+      JAVA_TOOL_OPTIONS: "-Xms48m -Xmx96m"
+    ports:
+      - "9092:9092"
+    networks:
+      - cordillera-net
+    depends_on:
+      postgres:
+        condition: service_healthy
+      ms-clientes:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9092/actuator/health"]
+      interval: 45s
+      timeout: 10s
+      start_period: 60s
+      retries: 2
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '0.3'
+          memory: 192M
+        reservations:
+          cpus: '0.15'
+          memory: 96M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "2"
+
+  # Microservicio de Inventario (IMPORTANTE - ecommerce lo necesita)
+  ms-inventario:
+    build:
+      context: ./ms-inventario
+      dockerfile: Dockerfile.optimized
+    image: cordillera/ms-inventario:latest
+    container_name: ms-inventario
+    environment:
+      SERVER_PORT: 9093
+      SPRING_PROFILES_ACTIVE: production
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/db_inventario
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-postgres}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-cordillera2024}
+      SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE: 5
+      SPRING_DATASOURCE_HIKARI_MINIMUM_IDLE: 1
+      SPRING_JPA_HIBERNATE_DDL_AUTO: validate
+      SPRING_LOGGING_LEVEL_ROOT: WARN
+      SPRING_JPA_SHOW_SQL: "false"
+      MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE: health
+      JAVA_TOOL_OPTIONS: "-Xms48m -Xmx96m"
+    ports:
+      - "9093:9093"
+    networks:
+      - cordillera-net
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9093/actuator/health"]
+      interval: 45s
+      timeout: 10s
+      start_period: 60s
+      retries: 2
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '0.3'
+          memory: 192M
+        reservations:
+          cpus: '0.15'
+          memory: 96M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "2"
+
+  # Microservicio de Ventas (OPCIONAL - comentado para ahorrar RAM)
+  # Descomenta si necesitas este servicio y tienes espacio
+  # ms-ventas:
+  #   build:
+  #     context: ./ms-ventas
+  #     dockerfile: Dockerfile.optimized
+  #   image: cordillera/ms-ventas:latest
+  #   container_name: ms-ventas
+  #   environment:
+  #     SERVER_PORT: 9091
+  #     SPRING_PROFILES_ACTIVE: production
+  #     SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/db_ventas
+  #     SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-postgres}
+  #     SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-cordillera2024}
+  #     SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE: 5
+  #     SPRING_DATASOURCE_HIKARI_MINIMUM_IDLE: 1
+  #     JAVA_TOOL_OPTIONS: "-Xms48m -Xmx96m"
+  #   ports:
+  #     - "9091:9091"
+  #   networks:
+  #     - cordillera-net
+  #   depends_on:
+  #     postgres:
+  #       condition: service_healthy
+  #   restart: unless-stopped
+  #   deploy:
+  #     resources:
+  #       limits:
+  #         cpus: '0.3'
+  #         memory: 192M
+
+  # Microservicio Financiero (OPCIONAL - comentado para ahorrar RAM)
+  # ms-financiero:
+  #   build:
+  #     context: ./ms-financiero
+  #     dockerfile: Dockerfile.optimized
+  #   image: cordillera/ms-financiero:latest
+  #   container_name: ms-financiero
+  #   environment:
+  #     SERVER_PORT: 9094
+  #     SPRING_PROFILES_ACTIVE: production
+  #     SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/db_financiero
+  #     JAVA_TOOL_OPTIONS: "-Xms48m -Xmx96m"
+  #   ports:
+  #     - "9094:9094"
+  #   networks:
+  #     - cordillera-net
+  #   depends_on:
+  #     postgres:
+  #       condition: service_healthy
+  #   restart: unless-stopped
+  #   deploy:
+  #     resources:
+  #       limits:
+  #         cpus: '0.3'
+  #         memory: 192M
+
+networks:
+  cordillera-net:
+    driver: bridge
+
+volumes:
+  postgres_data:
+    driver: local

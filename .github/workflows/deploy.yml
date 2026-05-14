@@ -1,0 +1,121 @@
+name: Build & Deploy to EC2
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  pull_request:
+    branches:
+      - main
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  build:
+    name: Build and Test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Build with Maven
+        run: mvn clean package -DskipTests -B
+
+      - name: Run tests
+        run: mvn test -B
+
+      - name: Log in to GitHub Container Registry
+        if: github.event_name == 'push'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push Docker images
+        if: github.event_name == 'push'
+        run: |
+          docker-compose -f docker-compose-ec2.yml build
+          
+          # Tag and push each service
+          for service in api-gateway ms-clientes ms-ecommerce ms-inventario ms-ventas ms-financiero; do
+            docker tag cordillera/$service:latest ${{ env.REGISTRY }}/${{ github.repository }}/$service:latest
+            docker push ${{ env.REGISTRY }}/${{ github.repository }}/$service:latest
+          done
+
+  deploy:
+    name: Deploy to EC2
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy to EC2
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_PRIVATE_KEY }}
+          script: |
+            cd ${{ secrets.EC2_PROJECT_PATH }}
+            
+            # Actualizar código
+            git fetch origin
+            git checkout main
+            git pull origin main
+            
+            # Ejecutar deploy
+            ./deploy-ec2.sh
+            
+            # Mostrar status
+            docker-compose -f docker-compose-ec2.yml ps
+
+      - name: Health check
+        run: |
+          for i in {1..10}; do
+            if curl -s http://${{ secrets.EC2_HOST }}:9090/actuator/health | grep -q '"status":"UP"'; then
+              echo "✓ Deployment successful"
+              exit 0
+            fi
+            echo "  Attempt $i/10..."
+            sleep 5
+          done
+          echo "✗ Deployment failed"
+          exit 1
+
+      - name: Notify Slack (opcional)
+        if: always()
+        uses: slackapi/slack-github-action@v1
+        with:
+          payload: |
+            {
+              "text": "Deployment to EC2 ${{ job.status }}",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*Grupo Cordillera - Deployment*\nStatus: ${{ job.status }}\nBranch: ${{ github.ref }}\nCommit: ${{ github.sha }}"
+                  }
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}

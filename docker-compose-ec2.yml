@@ -1,0 +1,342 @@
+version: '3.8'
+
+# Docker Compose optimizado para EC2 (AWS)
+# Configuración con health checks, limites de recursos y logging centralizado
+
+services:
+  # PostgreSQL Database - Base de datos centralizada
+  postgres:
+    image: postgres:16-alpine
+    container_name: postgres-cordillera
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-cordillera2024}
+      POSTGRES_INITDB_ARGS: "-c shared_buffers=256MB -c max_connections=200"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./db-init:/docker-entrypoint-initdb.d:ro
+    ports:
+      - "5432:5432"
+    networks:
+      - cordillera-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+    logging:
+      driver: "awslogs"
+      options:
+        awslogs-group: "/ecs/cordillera-postgres"
+        awslogs-region: "${AWS_REGION:-us-east-1}"
+        awslogs-stream-prefix: "ecs"
+        tag: "postgres"
+
+  # API Gateway
+  api-gateway:
+    build:
+      context: ./api-gateway
+      dockerfile: Dockerfile.optimized
+    image: cordillera/api-gateway:latest
+    container_name: api-gateway
+    environment:
+      SERVER_PORT: 9090
+      SPRING_PROFILES_ACTIVE: production
+      SPRING_LOGGING_LEVEL_ROOT: INFO
+      SPRING_LOGGING_LEVEL_COM_GRUPOCORDILLERA: DEBUG
+      MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE: health,info,metrics
+    ports:
+      - "9090:9090"
+    networks:
+      - cordillera-net
+    depends_on:
+      ms-clientes:
+        condition: service_healthy
+      ms-ecommerce:
+        condition: service_healthy
+      ms-inventario:
+        condition: service_healthy
+      ms-ventas:
+        condition: service_healthy
+      ms-financiero:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9090/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      start_period: 40s
+      retries: 3
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 512M
+        reservations:
+          cpus: '0.5'
+          memory: 256M
+    logging:
+      driver: "awslogs"
+      options:
+        awslogs-group: "/ecs/cordillera-api-gateway"
+        awslogs-region: "${AWS_REGION:-us-east-1}"
+        awslogs-stream-prefix: "ecs"
+
+  # Microservicio de Ventas
+  ms-ventas:
+    build:
+      context: ./ms-ventas
+      dockerfile: Dockerfile.optimized
+    image: cordillera/ms-ventas:latest
+    container_name: ms-ventas
+    environment:
+      SERVER_PORT: 9091
+      SPRING_PROFILES_ACTIVE: production
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/db_ventas
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-postgres}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-cordillera2024}
+      SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE: 20
+      SPRING_DATASOURCE_HIKARI_MINIMUM_IDLE: 5
+      SPRING_JPA_HIBERNATE_DDL_AUTO: validate
+      SPRING_LOGGING_LEVEL_ROOT: INFO
+      MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE: health,info,metrics
+    ports:
+      - "9091:9091"
+    networks:
+      - cordillera-net
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9091/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      start_period: 50s
+      retries: 3
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '0.75'
+          memory: 768M
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+    logging:
+      driver: "awslogs"
+      options:
+        awslogs-group: "/ecs/cordillera-ms-ventas"
+        awslogs-region: "${AWS_REGION:-us-east-1}"
+        awslogs-stream-prefix: "ecs"
+
+  # Microservicio de Ecommerce
+  ms-ecommerce:
+    build:
+      context: ./ms-ecommerce
+      dockerfile: Dockerfile.optimized
+    image: cordillera/ms-ecommerce:latest
+    container_name: ms-ecommerce
+    environment:
+      SERVER_PORT: 9092
+      SPRING_PROFILES_ACTIVE: production
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/db_ecommerce
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-postgres}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-cordillera2024}
+      SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE: 20
+      SPRING_DATASOURCE_HIKARI_MINIMUM_IDLE: 5
+      SPRING_JPA_HIBERNATE_DDL_AUTO: validate
+      MS_CLIENTES_URL: http://ms-clientes:9095
+      MS_INVENTARIO_URL: http://ms-inventario:9093
+      SPRING_LOGGING_LEVEL_ROOT: INFO
+      MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE: health,info,metrics
+    ports:
+      - "9092:9092"
+    networks:
+      - cordillera-net
+    depends_on:
+      postgres:
+        condition: service_healthy
+      ms-clientes:
+        condition: service_healthy
+      ms-inventario:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9092/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      start_period: 50s
+      retries: 3
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '0.75'
+          memory: 768M
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+    logging:
+      driver: "awslogs"
+      options:
+        awslogs-group: "/ecs/cordillera-ms-ecommerce"
+        awslogs-region: "${AWS_REGION:-us-east-1}"
+        awslogs-stream-prefix: "ecs"
+
+  # Microservicio de Inventario
+  ms-inventario:
+    build:
+      context: ./ms-inventario
+      dockerfile: Dockerfile.optimized
+    image: cordillera/ms-inventario:latest
+    container_name: ms-inventario
+    environment:
+      SERVER_PORT: 9093
+      SPRING_PROFILES_ACTIVE: production
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/db_inventario
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-postgres}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-cordillera2024}
+      SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE: 20
+      SPRING_DATASOURCE_HIKARI_MINIMUM_IDLE: 5
+      SPRING_JPA_HIBERNATE_DDL_AUTO: validate
+      SPRING_LOGGING_LEVEL_ROOT: INFO
+      MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE: health,info,metrics
+    ports:
+      - "9093:9093"
+    networks:
+      - cordillera-net
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9093/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      start_period: 50s
+      retries: 3
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '0.75'
+          memory: 512M
+        reservations:
+          cpus: '0.5'
+          memory: 256M
+    logging:
+      driver: "awslogs"
+      options:
+        awslogs-group: "/ecs/cordillera-ms-inventario"
+        awslogs-region: "${AWS_REGION:-us-east-1}"
+        awslogs-stream-prefix: "ecs"
+
+  # Microservicio Financiero
+  ms-financiero:
+    build:
+      context: ./ms-financiero
+      dockerfile: Dockerfile.optimized
+    image: cordillera/ms-financiero:latest
+    container_name: ms-financiero
+    environment:
+      SERVER_PORT: 9094
+      SPRING_PROFILES_ACTIVE: production
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/db_financiero
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-postgres}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-cordillera2024}
+      SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE: 20
+      SPRING_DATASOURCE_HIKARI_MINIMUM_IDLE: 5
+      SPRING_JPA_HIBERNATE_DDL_AUTO: validate
+      SPRING_LOGGING_LEVEL_ROOT: INFO
+      MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE: health,info,metrics
+    ports:
+      - "9094:9094"
+    networks:
+      - cordillera-net
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9094/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      start_period: 50s
+      retries: 3
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+    logging:
+      driver: "awslogs"
+      options:
+        awslogs-group: "/ecs/cordillera-ms-financiero"
+        awslogs-region: "${AWS_REGION:-us-east-1}"
+        awslogs-stream-prefix: "ecs"
+
+  # Microservicio de Clientes
+  ms-clientes:
+    build:
+      context: ./ms-clientes
+      dockerfile: Dockerfile.optimized
+    image: cordillera/ms-clientes:latest
+    container_name: ms-clientes
+    environment:
+      SERVER_PORT: 9095
+      SPRING_PROFILES_ACTIVE: production
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/db_clientes
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-postgres}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-cordillera2024}
+      SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE: 20
+      SPRING_DATASOURCE_HIKARI_MINIMUM_IDLE: 5
+      SPRING_JPA_HIBERNATE_DDL_AUTO: validate
+      JWT_SECRET: ${JWT_SECRET:-cordillera-jwt-secret-2024-fullstack3-grupo}
+      SPRING_LOGGING_LEVEL_ROOT: INFO
+      MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE: health,info,metrics
+    ports:
+      - "9095:9095"
+    networks:
+      - cordillera-net
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9095/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      start_period: 50s
+      retries: 3
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '0.75'
+          memory: 512M
+        reservations:
+          cpus: '0.5'
+          memory: 256M
+    logging:
+      driver: "awslogs"
+      options:
+        awslogs-group: "/ecs/cordillera-ms-clientes"
+        awslogs-region: "${AWS_REGION:-us-east-1}"
+        awslogs-stream-prefix: "ecs"
+
+networks:
+  cordillera-net:
+    driver: bridge
+
+volumes:
+  postgres_data:
+    driver: local

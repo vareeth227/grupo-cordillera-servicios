@@ -1,0 +1,31 @@
+[Unit]
+Description=Grupo Cordillera Microservicios
+Documentation=https://github.com/vareeth227/grupo-cordillera-servicios
+Requires=docker.service
+After=docker.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=true
+WorkingDirectory=/home/ec2-user/grupo-cordillera-servicios
+
+# Cargar variables de entorno
+EnvironmentFile=/home/ec2-user/grupo-cordillera-servicios/.env.ec2
+
+# Iniciar
+ExecStart=/bin/bash /home/ec2-user/grupo-cordillera-servicios/start-ec2.sh
+
+# Parar
+ExecStop=/bin/bash /home/ec2-user/grupo-cordillera-servicios/stop-ec2.sh
+
+# Reintentos
+Restart=on-failure
+RestartSec=30
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=cordillera
+
+[Install]
+WantedBy=multi-user.target
