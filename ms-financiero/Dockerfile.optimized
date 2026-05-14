@@ -1,0 +1,37 @@
+# Dockerfile optimizado para ms-financiero - EC2
+
+# Stage 1: Builder
+FROM maven:3.9.6-eclipse-temurin-17 AS builder
+WORKDIR /app
+COPY pom.xml .
+RUN mvn dependency:go-offline -B && mvn clean cache:clean
+COPY src ./src
+RUN mvn clean package -DskipTests -B -q && \
+    mv /app/target/*.jar /app/app.jar && \
+    rm -rf /app/src /app/.m2
+
+# Stage 2: Runtime
+FROM eclipse-temurin:17.0.8_7-jre-alpine
+WORKDIR /app
+COPY --from=builder /app/app.jar .
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup && chown -R appuser:appgroup /app
+USER appuser
+EXPOSE 9094
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+    CMD wget --no-verbose --tries=1 --spider http://localhost:9094/actuator/health || exit 1
+
+ENTRYPOINT ["java", \
+  "-XX:+UseContainerSupport", \
+  "-XX:MaxRAMPercentage=75.0", \
+  "-XX:+UseG1GC", \
+  "-XX:MaxGCPauseMillis=200", \
+  "-XX:+HeapDumpOnOutOfMemoryError", \
+  "-XX:HeapDumpPath=/tmp/heapdump.hprof", \
+  "-Djava.awt.headless=true", \
+  "-Dcom.sun.management.jmxremote=true", \
+  "-Dcom.sun.management.jmxremote.port=9010", \
+  "-Dcom.sun.management.jmxremote.rmi.port=9010", \
+  "-Dcom.sun.management.jmxremote.authenticate=false", \
+  "-Dcom.sun.management.jmxremote.ssl=false", \
+  "-jar", "app.jar"]
