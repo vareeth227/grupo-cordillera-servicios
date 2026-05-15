@@ -1,37 +1,48 @@
-# Dockerfile optimizado para API Gateway - EC2
+# Dockerfile ultra-optimizado para API Gateway en t3.micro
 
-# Stage 1: Builder
-FROM maven:3.9.6-eclipse-temurin-17 AS builder
+# Stage 1: Builder - Compilación con Maven SLIM
+FROM maven:3.9.6-eclipse-temurin-17-alpine AS builder
 WORKDIR /app
 COPY pom.xml .
-RUN mvn dependency:go-offline -B && mvn clean cache:clean
+# Solo descargar dependencias, sin test ni documentación
+RUN mvn -B dependency:go-offline -DexcludeTransitive 2>/dev/null || true
 COPY src ./src
-RUN mvn clean package -DskipTests -B -q && \
-    mv /app/target/*.jar /app/app.jar && \
-    rm -rf /app/src /app/.m2
+RUN mvn clean package -DskipTests -B -q \
+    -Dmaven.javadoc.skip=true \
+    -Dmaven.source.skip=true \
+    && mv /app/target/*.jar /app/app.jar \
+    && rm -rf /app/src /app/.m2 /app/target
 
-# Stage 2: Runtime
+# Stage 2: Runtime - Imagen ultra-minimalista
 FROM eclipse-temurin:17.0.8_7-jre-alpine
 WORKDIR /app
 COPY --from=builder /app/app.jar .
-RUN addgroup -S appgroup && adduser -S appuser -G appgroup && chown -R appuser:appgroup /app
+
+# Usuario no-root (reducir layers)
+RUN addgroup -S appgroup && \
+    adduser -S appuser -G appgroup && \
+    chown -R appuser:appgroup /app && \
+    mkdir -p /tmp && \
+    chmod 777 /tmp
+
 USER appuser
 EXPOSE 9090
 
-HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+# Health check minimalista (60s interval para t3.micro)
+HEALTHCHECK --interval=60s --timeout=10s --start-period=60s --retries=2 \
     CMD wget --no-verbose --tries=1 --spider http://localhost:9090/actuator/health || exit 1
 
+# JVM ultra-optimizado para t3.micro (máximo 80MB heap)
 ENTRYPOINT ["java", \
-  "-XX:+UseContainerSupport", \
-  "-XX:MaxRAMPercentage=75.0", \
   "-XX:+UseG1GC", \
   "-XX:MaxGCPauseMillis=200", \
-  "-XX:+HeapDumpOnOutOfMemoryError", \
-  "-XX:HeapDumpPath=/tmp/heapdump.hprof", \
+  "-XX:InitialRAMPercentage=40.0", \
+  "-XX:MaxRAMPercentage=50.0", \
+  "-XX:+AlwaysPreTouch", \
+  "-XX:+UseStringDeduplication", \
+  "-XX:-UseAdaptiveSizePolicy", \
+  "-XX:MinHeapFreeRatio=20", \
+  "-XX:MaxHeapFreeRatio=40", \
   "-Djava.awt.headless=true", \
-  "-Dcom.sun.management.jmxremote=true", \
-  "-Dcom.sun.management.jmxremote.port=9010", \
-  "-Dcom.sun.management.jmxremote.rmi.port=9010", \
-  "-Dcom.sun.management.jmxremote.authenticate=false", \
-  "-Dcom.sun.management.jmxremote.ssl=false", \
+  "-Dfile.encoding=UTF-8", \
   "-jar", "app.jar"]

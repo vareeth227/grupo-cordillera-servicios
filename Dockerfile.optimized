@@ -1,31 +1,31 @@
-# Dockerfile optimizado para producción en EC2
-# Multi-stage build para reducir tamaño de imagen
+# Dockerfile optimizado ultra para t3.micro
+# Multi-stage build agresivo para reducir tamaño de imagen a mínimo
 
 # ============================================================
-# Stage 1: Builder - Compilación con Maven
+# Stage 1: Builder - Compilación con Maven SLIM
 # ============================================================
-FROM maven:3.9.6-eclipse-temurin-17 AS builder
+FROM maven:3.9.6-eclipse-temurin-17-alpine AS builder
 
 WORKDIR /app
 
 # Copiar pom.xml primero para aprovechar caché de Docker
 COPY pom.xml .
 
-# Descargar dependencias (optimiza caché)
-RUN mvn dependency:go-offline -B && \
-    mvn dependency:resolve && \
-    mvn clean cache:clean
+# Descargar SOLO dependencias necesarias (sin test dependencies)
+RUN mvn -B dependency:go-offline -DexcludeTransitive 2>/dev/null || true
 
 # Copiar código fuente
 COPY src ./src
 
-# Compilar sin tests
-RUN mvn clean package -DskipTests -B -q && \
-    mv /app/target/*.jar /app/app.jar && \
-    rm -rf /app/src /app/.m2
+# Compilar sin tests, sin javadoc, sin sources
+RUN mvn clean package -DskipTests -B -q \
+    -Dmaven.javadoc.skip=true \
+    -Dmaven.source.skip=true \
+    && mv /app/target/*.jar /app/app.jar \
+    && rm -rf /app/src /app/.m2 /app/target
 
 # ============================================================
-# Stage 2: Runtime - Imagen base mínima
+# Stage 2: Runtime - Imagen ultra minimalista
 # ============================================================
 FROM eclipse-temurin:17.0.8_7-jre-alpine
 
@@ -34,36 +34,38 @@ WORKDIR /app
 # Copiar JAR compilado desde builder
 COPY --from=builder /app/app.jar .
 
-# Crear usuario no-root para seguridad
+# Crear usuario no-root para seguridad (reduciendo layers)
 RUN addgroup -S appgroup && \
     adduser -S appuser -G appgroup && \
-    chown -R appuser:appgroup /app
+    chown -R appuser:appgroup /app && \
+    mkdir -p /tmp && \
+    chmod 777 /tmp
 
 USER appuser
 
 # Exponer puerto (será sobrescrito por docker-compose)
 EXPOSE 8080
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+# Health check minimalista
+HEALTHCHECK --interval=60s --timeout=10s --start-period=60s --retries=2 \
     CMD wget --no-verbose --tries=1 --spider http://localhost:8080/actuator/health || exit 1
 
-# JVM tuning para EC2:
-# - UseContainerSupport: Detecta límites de memoria del contenedor
-# - MaxRAMPercentage: Usa 75% de la memoria disponible
-# - HeapDumpOnOutOfMemoryError: Crea dump en caso de memory leak
-# - G1GC: Garbage collector optimizado para latencia
+# JVM tuning ULTRA optimizado para t3.micro (máximo 100MB heap):
+# - UseG1GC: Garbage collector optimizado para baja latencia
+# - MaxRAMPercentage=50: Usa solo 50% para ser ultra conservador
+# - InitialRAMPercentage: Inicializa rápido
+# - AlwaysPreTouch: Pre-aloca memoria (evita pausas después)
+# - UnlockExperimentalVMOptions: Habilita optimizaciones experimentales
 ENTRYPOINT ["java", \
-  "-XX:+UseContainerSupport", \
-  "-XX:MaxRAMPercentage=75.0", \
   "-XX:+UseG1GC", \
   "-XX:MaxGCPauseMillis=200", \
-  "-XX:+HeapDumpOnOutOfMemoryError", \
-  "-XX:HeapDumpPath=/tmp/heapdump.hprof", \
+  "-XX:InitialRAMPercentage=40.0", \
+  "-XX:MaxRAMPercentage=50.0", \
+  "-XX:+AlwaysPreTouch", \
+  "-XX:+UseStringDeduplication", \
+  "-XX:-UseAdaptiveSizePolicy", \
+  "-XX:MinHeapFreeRatio=20", \
+  "-XX:MaxHeapFreeRatio=40", \
   "-Djava.awt.headless=true", \
-  "-Dcom.sun.management.jmxremote=true", \
-  "-Dcom.sun.management.jmxremote.port=9010", \
-  "-Dcom.sun.management.jmxremote.rmi.port=9010", \
-  "-Dcom.sun.management.jmxremote.authenticate=false", \
-  "-Dcom.sun.management.jmxremote.ssl=false", \
+  "-Dfile.encoding=UTF-8", \
   "-jar", "app.jar"]

@@ -1,52 +1,83 @@
 # Grupo Cordillera — Microservicios y API Gateway
 
-[![CI — Microservicios](https://github.com/vareeth227/grupo-cordillera-servicios/actions/workflows/ci.yml/badge.svg)](https://github.com/vareeth227/grupo-cordillera-servicios/actions/workflows/ci.yml)
-
-Contiene los 5 microservicios Spring Boot y el API Gateway con Circuit Breaker y JWT.
-
-> Las **bases de datos deben estar corriendo** antes de iniciar este repositorio.  
-> Ver: [grupo-cordillera-db](https://github.com/vareeth227/grupo-cordillera-db)
-
----
-
-## Requisitos
-
-| Herramienta | Versión mínima | Verificar |
-|---|---|---|
-| Docker Desktop | cualquiera | `docker --version` |
-| Java JDK | 17 | `java -version` |
-| Maven | 3.8+ | `mvn -version` |
-
----
+Microservicios Spring Boot con Docker Compose optimizado.
 
 ## Puertos
 
-| Servicio      | Puerto | Descripción                          |
-|---------------|--------|--------------------------------------|
-| api-gateway   | 9090   | Punto de entrada único (enruta todo) |
-| ms-ventas     | 9091   | Puntos de venta y transacciones      |
-| ms-ecommerce  | 9092   | Pedidos online                       |
-| ms-inventario | 9093   | Catálogo de productos y stock        |
-| ms-financiero | 9094   | Ingresos, egresos y KPIs             |
-| ms-clientes   | 9095   | CRM y tickets de atención            |
+| Servicio      | Puerto | URL |
+|---------------|--------|-----|
+| api-gateway   | 9090   | http://localhost:9090 |
+| ms-ventas     | 9091   | http://localhost:9091 |
+| ms-ecommerce  | 9092   | http://localhost:9092 |
+| ms-inventario | 9093   | http://localhost:9093 |
+| ms-financiero | 9094   | http://localhost:9094 |
+| ms-clientes   | 9095   | http://localhost:9095 |
 
----
+## Inicio Rápido
 
-## Opción A — Docker Compose (recomendado para evaluación)
+### Con Docker Compose
 
-Abre **PowerShell** en esta carpeta.
-
-**Paso 1 — Crear la red Docker compartida**
-```powershell
+```bash
+# Crear red
 docker network create cordillera-net
-```
-> Si aparece "already exists", continúa al paso 2.
 
-**Paso 2 — Construir e iniciar todos los servicios**
-```powershell
-docker-compose -f docker-compose-services.yml up --build -d
+# Iniciar servicios
+docker-compose -f docker-compose-t3micro.yml up --build -d
+
+# Ver estado
+docker ps
+docker logs -f api-gateway
+
+# Detener
+docker-compose -f docker-compose-t3micro.yml down
 ```
-> La primera vez tarda entre 5 y 10 minutos mientras Maven descarga dependencias y compila.
+
+### Tests
+
+```bash
+# Ejecutar tests de un microservicio
+cd ms-clientes
+mvn test
+
+# O todos
+mvn clean test
+```
+
+## Configuración
+
+`.env.example` contiene las variables:
+- `POSTGRES_PASSWORD=postgres`
+- `JWT_SECRET=cordillera-jwt-secret-2024-fullstack3-grupo`
+- `CORS_ALLOWED_ORIGINS=http://localhost:3000,http://localhost:9090`
+
+Copiar a `.env` y ajustar si es necesario.
+
+## Estructura
+
+```
+├── api-gateway/              # Puerta de entrada
+├── ms-clientes/              # CRM y autenticación
+├── ms-ventas/                # Gestión de ventas
+├── ms-ecommerce/             # E-commerce
+├── ms-inventario/            # Control de inventario
+├── ms-financiero/            # Reportes financieros
+├── docker-compose-t3micro.yml # Compose optimizado
+└── .env.example              # Variables de entorno
+```
+
+## Health Check
+
+```bash
+curl http://localhost:9090/actuator/health
+curl http://localhost:9095/actuator/health
+```
+
+## Requisitos
+
+- Docker Desktop
+- Java 17+
+- Maven 3.8+
+
 
 **Paso 3 — Ver el estado de los contenedores**
 ```powershell
