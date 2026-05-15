@@ -1,0 +1,79 @@
+version: '3.8'
+
+# Este archivo va en la EC2 Backend en /home/ec2-user/cordillera/docker-compose.yml
+# Reemplaza DB_PRIVATE_IP por la IP privada real de la EC2 de base de datos
+
+services:
+  ms-ventas:
+    image: ghcr.io/vareeth227/ms-ventas:latest
+    container_name: ms-ventas
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://DB_PRIVATE_IP:5432/db_ventas
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: postgres
+      SERVER_PORT: 9091
+    restart: unless-stopped
+
+  ms-ecommerce:
+    image: ghcr.io/vareeth227/ms-ecommerce:latest
+    container_name: ms-ecommerce
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://DB_PRIVATE_IP:5433/db_ecommerce
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: postgres
+      SERVER_PORT: 9092
+      MS_CLIENTES_URL: http://ms-clientes:9095
+      MS_INVENTARIO_URL: http://ms-inventario:9093
+    restart: unless-stopped
+
+  ms-inventario:
+    image: ghcr.io/vareeth227/ms-inventario:latest
+    container_name: ms-inventario
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://DB_PRIVATE_IP:5434/db_inventario
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: postgres
+      SERVER_PORT: 9093
+    restart: unless-stopped
+
+  ms-financiero:
+    image: ghcr.io/vareeth227/ms-financiero:latest
+    container_name: ms-financiero
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://DB_PRIVATE_IP:5435/db_financiero
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: postgres
+      SERVER_PORT: 9094
+    restart: unless-stopped
+
+  ms-clientes:
+    image: ghcr.io/vareeth227/ms-clientes:latest
+    container_name: ms-clientes
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://DB_PRIVATE_IP:5436/db_clientes
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: postgres
+      SERVER_PORT: 9095
+      JWT_SECRET: cordillera-jwt-secret-2024-fullstack3-grupo
+    restart: unless-stopped
+
+  api-gateway:
+    image: ghcr.io/vareeth227/api-gateway:latest
+    container_name: api-gateway
+    environment:
+      SERVER_PORT: 9090
+      MS_VENTAS_URL: http://ms-ventas:9091
+      MS_ECOMMERCE_URL: http://ms-ecommerce:9092
+      MS_INVENTARIO_URL: http://ms-inventario:9093
+      MS_FINANCIERO_URL: http://ms-financiero:9094
+      MS_CLIENTES_URL: http://ms-clientes:9095
+      JWT_SECRET: cordillera-jwt-secret-2024-fullstack3-grupo
+    ports:
+      - "9090:9090"
+    depends_on:
+      - ms-ventas
+      - ms-ecommerce
+      - ms-inventario
+      - ms-financiero
+      - ms-clientes
+    restart: unless-stopped
