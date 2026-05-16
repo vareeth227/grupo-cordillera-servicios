@@ -1,0 +1,108 @@
+version: '3.8'
+
+# Docker Compose MÍNIMO - Solo las 5 bases de datos PostgreSQL
+# Los microservicios corren como procesos Java locales
+# Esto ocupa ~500MB en total (vs 8GB con Docker Desktop)
+
+services:
+  postgres-ventas:
+    image: postgres:15-alpine
+    container_name: db-ventas
+    environment:
+      POSTGRES_DB: db_ventas
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_HOST_AUTH_METHOD: trust
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata-ventas:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d db_ventas"]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+
+  postgres-ecommerce:
+    image: postgres:15-alpine
+    container_name: db-ecommerce
+    environment:
+      POSTGRES_DB: db_ecommerce
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_HOST_AUTH_METHOD: trust
+    ports:
+      - "5433:5432"
+    volumes:
+      - pgdata-ecommerce:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d db_ecommerce"]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+
+  postgres-inventario:
+    image: postgres:15-alpine
+    container_name: db-inventario
+    environment:
+      POSTGRES_DB: db_inventario
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_HOST_AUTH_METHOD: trust
+    ports:
+      - "5434:5432"
+    volumes:
+      - pgdata-inventario:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d db_inventario"]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+
+  postgres-financiero:
+    image: postgres:15-alpine
+    container_name: db-financiero
+    environment:
+      POSTGRES_DB: db_financiero
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_HOST_AUTH_METHOD: trust
+    ports:
+      - "5435:5432"
+    volumes:
+      - pgdata-financiero:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d db_financiero"]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+
+  postgres-clientes:
+    image: postgres:15-alpine
+    container_name: db-clientes
+    environment:
+      POSTGRES_DB: db_clientes
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_HOST_AUTH_METHOD: trust
+    ports:
+      - "5436:5432"
+    volumes:
+      - pgdata-clientes:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d db_clientes"]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+
+volumes:
+  pgdata-ventas:
+  pgdata-ecommerce:
+  pgdata-inventario:
+  pgdata-financiero:
+  pgdata-clientes:

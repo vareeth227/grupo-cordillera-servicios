@@ -1,0 +1,294 @@
+version: '3.8'
+
+services:
+  # ==================== BASES DE DATOS ====================
+  
+  # Base de datos para el microservicio de ventas
+  postgres-ventas:
+    image: postgres:15-alpine
+    container_name: db-ventas
+    environment:
+      POSTGRES_DB: db_ventas
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_HOST_AUTH_METHOD: trust
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata-ventas:/var/lib/postgresql/data
+    networks:
+      - cordillera-net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d db_ventas"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Base de datos para el microservicio de ecommerce
+  postgres-ecommerce:
+    image: postgres:15-alpine
+    container_name: db-ecommerce
+    environment:
+      POSTGRES_DB: db_ecommerce
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_HOST_AUTH_METHOD: trust
+    ports:
+      - "5433:5432"
+    volumes:
+      - pgdata-ecommerce:/var/lib/postgresql/data
+    networks:
+      - cordillera-net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d db_ecommerce"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Base de datos para el microservicio de inventario
+  postgres-inventario:
+    image: postgres:15-alpine
+    container_name: db-inventario
+    environment:
+      POSTGRES_DB: db_inventario
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_HOST_AUTH_METHOD: trust
+    ports:
+      - "5434:5432"
+    volumes:
+      - pgdata-inventario:/var/lib/postgresql/data
+    networks:
+      - cordillera-net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d db_inventario"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Base de datos para el microservicio financiero
+  postgres-financiero:
+    image: postgres:15-alpine
+    container_name: db-financiero
+    environment:
+      POSTGRES_DB: db_financiero
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_HOST_AUTH_METHOD: trust
+    ports:
+      - "5435:5432"
+    volumes:
+      - pgdata-financiero:/var/lib/postgresql/data
+    networks:
+      - cordillera-net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d db_financiero"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Base de datos para el microservicio de clientes
+  postgres-clientes:
+    image: postgres:15-alpine
+    container_name: db-clientes
+    environment:
+      POSTGRES_DB: db_clientes
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_HOST_AUTH_METHOD: trust
+    ports:
+      - "5436:5432"
+    volumes:
+      - pgdata-clientes:/var/lib/postgresql/data
+    networks:
+      - cordillera-net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d db_clientes"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ==================== MICROSERVICIOS ====================
+
+  # Microservicio de Ventas - gestión de puntos de venta y transacciones
+  ms-ventas:
+    build:
+      context: ./ms-ventas
+      dockerfile: Dockerfile
+    container_name: ms-ventas
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-ventas:5432/db_ventas
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-postgres}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      SERVER_PORT: 9091
+    ports:
+      - "9091:9091"
+    networks:
+      - cordillera-net
+    depends_on:
+      postgres-ventas:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:9091/actuator/health || exit 1"]
+      interval: 20s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Microservicio de Ecommerce - gestión de pedidos online
+  ms-ecommerce:
+    build:
+      context: ./ms-ecommerce
+      dockerfile: Dockerfile
+    container_name: ms-ecommerce
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-ecommerce:5432/db_ecommerce
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-postgres}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      SERVER_PORT: 9092
+      MS_CLIENTES_URL: http://ms-clientes:9095
+      MS_INVENTARIO_URL: http://ms-inventario:9093
+    ports:
+      - "9092:9092"
+    networks:
+      - cordillera-net
+    depends_on:
+      postgres-ecommerce:
+        condition: service_healthy
+      ms-clientes:
+        condition: service_healthy
+      ms-inventario:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:9092/actuator/health || exit 1"]
+      interval: 20s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  ms-inventario:
+    build:
+      context: ./ms-inventario
+      dockerfile: Dockerfile
+    container_name: ms-inventario
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-inventario:5432/db_inventario
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-postgres}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      SERVER_PORT: 9093
+    ports:
+      - "9093:9093"
+    networks:
+      - cordillera-net
+    depends_on:
+      postgres-inventario:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:9093/actuator/health || exit 1"]
+      interval: 20s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  ms-financiero:
+    build:
+      context: ./ms-financiero
+      dockerfile: Dockerfile
+    container_name: ms-financiero
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-financiero:5432/db_financiero
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-postgres}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      SERVER_PORT: 9094
+    ports:
+      - "9094:9094"
+    networks:
+      - cordillera-net
+    depends_on:
+      postgres-financiero:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:9094/actuator/health || exit 1"]
+      interval: 20s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  ms-clientes:
+    build:
+      context: ./ms-clientes
+      dockerfile: Dockerfile
+    container_name: ms-clientes
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-clientes:5432/db_clientes
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-postgres}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      SERVER_PORT: 9095
+      JWT_SECRET: ${JWT_SECRET:-cordillera-jwt-secret-2024-fullstack3-grupo}
+    ports:
+      - "9095:9095"
+    networks:
+      - cordillera-net
+    depends_on:
+      postgres-clientes:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:9095/actuator/health || exit 1"]
+      interval: 20s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  api-gateway:
+    build:
+      context: ./api-gateway
+      dockerfile: Dockerfile
+    container_name: api-gateway
+    environment:
+      SERVER_PORT: 9090
+      MS_VENTAS_URL: http://ms-ventas:9091
+      MS_ECOMMERCE_URL: http://ms-ecommerce:9092
+      MS_INVENTARIO_URL: http://ms-inventario:9093
+      MS_FINANCIERO_URL: http://ms-financiero:9094
+      MS_CLIENTES_URL: http://ms-clientes:9095
+      JWT_SECRET: ${JWT_SECRET:-cordillera-jwt-secret-2024-fullstack3-grupo}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:5173,http://localhost:3000}
+    ports:
+      - "9090:9090"
+    networks:
+      - cordillera-net
+    depends_on:
+      - ms-ventas
+      - ms-ecommerce
+      - ms-inventario
+      - ms-financiero
+      - ms-clientes
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:9090/actuator/health || exit 1"]
+      interval: 20s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+volumes:
+  pgdata-ventas:
+  pgdata-ecommerce:
+  pgdata-inventario:
+  pgdata-financiero:
+  pgdata-clientes:
+
+networks:
+  cordillera-net:
+    driver: bridge
+    name: cordillera-net

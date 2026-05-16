@@ -1,15 +1,13 @@
-package com.grupocordillera.msventas;
+package com.grupocordillera.inventario;
 
-import com.grupocordillera.ventas.VentasApplication;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.context.SpringBootTest;
 
-import static org.junit.jupiter.api.Assertions.assertTrue;
-
-@SpringBootTest(classes = VentasApplication.class)
+@SpringBootTest(classes = InventarioApplication.class)
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.ANY)
-class MsVentasApplicationTests {
+class InventarioApplicationTests {
 
     @Test
     void contextLoads() {
