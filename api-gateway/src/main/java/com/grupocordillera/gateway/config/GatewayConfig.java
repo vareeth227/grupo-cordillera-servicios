@@ -109,16 +109,28 @@ public class GatewayConfig {
     }
 
     /**
-     * Configura CORS para permitir requests desde el frontend en EC2.
-     * Permite el origen específico configurado en variables de entorno.
+     * Configura CORS para permitir requests desde múltiples orígenes.
+     * - localhost:5173 (desarrollo local)
+     * - 192.168.1.135:5173 (red local - PC-A)
+     * - 54.196.217.78:9091 (EC2 producción)
+     * - Cualquier puerto local en desarrollo con pattern
      */
     @Bean
     public CorsWebFilter corsWebFilter() {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOrigins(Arrays.asList("http://54.196.217.78:9091"));
-        config.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        
+        // Permitir múltiples orígenes (desarrollo local y producción)
+        config.setAllowedOriginPatterns(Arrays.asList(
+            "http://localhost:*",
+            "http://192.168.1.*:*",
+            "http://54.196.217.78:*",
+            "http://*.local:*"
+        ));
+        
+        config.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
         config.setAllowedHeaders(Arrays.asList("*"));
         config.setAllowCredentials(true);
+        config.setMaxAge(3600L); // Cache CORS por 1 hora
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", config);
