@@ -15,7 +15,7 @@
     <name>ms-clientes</name>
     <description>Microservicio de Clientes - Grupo Cordillera. CRM, historial de clientes y tickets de atención.</description>
     <properties>
-        <java.version>21</java.version>
+        <java.version>23</java.version>
     </properties>
     <dependencies>
         <dependency>
