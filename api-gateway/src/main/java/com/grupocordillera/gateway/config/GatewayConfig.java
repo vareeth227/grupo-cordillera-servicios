@@ -109,14 +109,14 @@ public class GatewayConfig {
     }
 
     /**
-     * Configura CORS para permitir requests desde el frontend React (puerto 3000).
-     * En producción, restringir origins al dominio real del frontend.
+     * Configura CORS para permitir requests desde el frontend en EC2.
+     * Permite el origen específico configurado en variables de entorno.
      */
     @Bean
     public CorsWebFilter corsWebFilter() {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOriginPatterns(Arrays.asList(corsAllowedOrigins.split(",")));
-        config.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
+        config.setAllowedOrigins(Arrays.asList("http://54.196.217.78:9091"));
+        config.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(Arrays.asList("*"));
         config.setAllowCredentials(true);
 
