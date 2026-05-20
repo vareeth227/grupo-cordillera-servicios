@@ -1,276 +1,304 @@
-# Grupo Cordillera — Microservicios + Base de Datos Integrada
+# Grupo Cordillera — Backend (Microservicios + Base de Datos)
 
-Backend completo con **5 microservicios Spring Boot**, **5 bases de datos PostgreSQL**, y **API Gateway**. 
+Backend completo del sistema Grupo Cordillera: **5 microservicios Spring Boot**, **5 bases de datos PostgreSQL** y **API Gateway** levantados con un solo comando Docker.
 
-**Versión sin Docker Desktop** - Solo necesita: **Java 23 + Maven + Docker** (mínimo, solo para BDs)
+---
 
-## 📊 Servicios
+## Arquitectura
 
-| Servicio      | Puerto | BD         | Descripción |
-|---------------|--------|-----------|-------------|
-| **api-gateway** | 9090   | N/A | Enrutador central del sistema |
-| **ms-ventas** | 9091   | db_ventas (5432) | Gestión de puntos de venta |
-| **ms-ecommerce** | 9092   | db_ecommerce (5433) | Pedidos online |
-| **ms-inventario** | 9093   | db_inventario (5434) | Control de stock |
-| **ms-financiero** | 9094   | db_financiero (5435) | KPIs e ingresos |
-| **ms-clientes** | 9095   | db_clientes (5436) | CRM y autenticación |
-
-## 🚀 Inicio Rápido (Sin Docker Desktop)
-
-### Requisitos
-- ✅ Java 23+ (verificar: `java -version`)
-- ✅ Maven 3.9+ (verificar: `mvn -v`)
-- 🐳 Docker (solo para PostgreSQL - muy ligero, ~500MB)
-
-### Paso 1: Iniciar solo las bases de datos
-
-```powershell
-docker-compose -f docker-compose-db-only.yml up -d
+```
+                        ┌─────────────────────────────┐
+  Frontend :5173  ──►   │   API Gateway  :9090         │
+                        │   (Spring Cloud Gateway)     │
+                        └────────────┬────────────────┘
+                                     │ enruta según /api/{servicio}/**
+              ┌──────────┬───────────┼───────────┬──────────┐
+              ▼          ▼           ▼           ▼          ▼
+         ms-ventas  ms-ecommerce ms-inventario ms-financiero ms-clientes
+          :9091       :9092        :9093         :9094        :9095
+              │          │           │             │          │
+           db_ventas db_ecommerce db_inventario db_financiero db_clientes
+            :5432     :5433        :5434          :5435       :5436
 ```
 
-Espera 30 segundos a que las BDs estén listas.
+Cada microservicio tiene su propia base de datos PostgreSQL. El API Gateway es el único punto de entrada desde el exterior.
 
-### Paso 2: Compilar todos los microservicios
+---
+
+## Requisitos
+
+| Herramienta | Versión mínima | Verificar |
+|---|---|---|
+| Docker Desktop | 4.x | `docker --version` |
+| Docker Compose | incluido en Docker Desktop | `docker compose version` |
+
+> **Sin Docker Desktop:** ver sección [Modo sin Docker Desktop](#modo-sin-docker-desktop) al final.
+
+---
+
+## Inicio rápido con Docker
+
+### Paso 1 — Clonar el repositorio
 
 ```powershell
-.\build-all.ps1
+git clone https://github.com/vareeth227/grupo-cordillera-servicios.git
+cd grupo-cordillera-servicios
 ```
 
-Esto compila los 6 servicios (5 microservicios + API Gateway) y genera archivos JAR.
-Toma **3-5 minutos** la primera vez.
-
-### Paso 3: Ejecutar todos los servicios en paralelo
+### Paso 2 — Levantar todo con un solo comando
 
 ```powershell
-.\run-all.ps1
+docker-compose up -d --build
 ```
 
-Esto inicia:
-- 6 procesos Java (uno por cada servicio)
-- Cada uno en su propio puerto
-- Genera logs en `./logs/`
+Este comando hace todo automáticamente:
+- Crea las 5 bases de datos PostgreSQL
+- Compila e inicia los 5 microservicios
+- Levanta el API Gateway
+- Espera a que cada BD esté sana antes de iniciar su microservicio (healthchecks)
 
-### Paso 4: Probar que funciona
+> La primera vez tarda **5-10 minutos** porque descarga las imágenes y compila Java.
+> Las siguientes veces: **1-2 minutos**.
+
+### Paso 3 — Verificar que todo está corriendo
 
 ```powershell
-# Test del API Gateway
+docker-compose ps
+```
+
+Todos los servicios deben aparecer como `healthy` o `running`.
+
+```powershell
+# Verificar el API Gateway (punto de entrada principal)
 curl http://localhost:9090/actuator/health
-
-# Test de cada microservicio
-curl http://localhost:9091/actuator/health  # ventas
-curl http://localhost:9092/actuator/health  # ecommerce
-curl http://localhost:9093/actuator/health  # inventario
-curl http://localhost:9094/actuator/health  # financiero
-curl http://localhost:9095/actuator/health  # clientes
 ```
 
-Cada uno debe retornar: `{"status":"UP"}`
+Respuesta esperada: `{"status":"UP"}`
 
+### Paso 4 — Probar los microservicios
 
-## 📁 Estructura
+Desde el navegador o Postman:
 
+| Servicio | URL directa | A través del Gateway |
+|---|---|---|
+| API Gateway | `http://localhost:9090/actuator/health` | — |
+| Ventas | `http://localhost:9091/actuator/health` | `http://localhost:9090/api/ventas/transacciones` |
+| Ecommerce | `http://localhost:9092/actuator/health` | `http://localhost:9090/api/ecommerce/pedidos` |
+| Inventario | `http://localhost:9093/actuator/health` | `http://localhost:9090/api/inventario/alertas` |
+| Financiero | `http://localhost:9094/actuator/health` | `http://localhost:9090/api/financiero/ingresos` |
+| Clientes | `http://localhost:9095/actuator/health` | `http://localhost:9090/api/clientes/activos` |
+
+---
+
+## Variables de entorno
+
+El `docker-compose.yml` usa variables con valores por defecto. Para personalizarlos, crea un archivo `.env` en la raíz del proyecto:
+
+```env
+# Credenciales PostgreSQL (opcional, por defecto: postgres/postgres)
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=postgres
+
+# Secreto JWT compartido entre ms-clientes y api-gateway
+JWT_SECRET=cordillera-jwt-secret-2024-fullstack3-grupo
+
+# Orígenes CORS permitidos (separados por coma)
+CORS_ALLOWED_ORIGINS=http://localhost:5173,http://localhost:3000
 ```
-.
-├── api-gateway/              # Spring Cloud Gateway reactivo
-├── ms-clientes/              # Microservicio de clientes (Liquibase)
-├── ms-ecommerce/             # Microservicio de ecommerce (Liquibase)
-├── ms-inventario/            # Microservicio de inventario
-├── ms-financiero/            # Microservicio financiero
-├── ms-ventas/                # Microservicio de ventas
-├── docker-compose-db-only.yml # ⭐ Solo PostgreSQL (mínimo)
-├── build-all.ps1             # 🔨 Compilar todos los JAR
-├── run-all.ps1               # ▶️  Ejecutar servicios en paralelo
-├── logs/                      # 📋 Logs de cada servicio
-└── README.md
+
+> El archivo `.env` está en `.gitignore` y nunca se sube al repositorio.
+
+---
+
+## Escenario dos PCs (presentación)
+
+Si el **frontend corre en otra PC** de la misma red:
+
+**En esta PC (backend):**
+```powershell
+# 1. Obtener la IP de esta máquina
+ipconfig
+# Busca: "Dirección IPv4" → ejemplo: 192.168.1.135
+
+# 2. Levantar el backend (sin cambios)
+docker-compose up -d
 ```
 
-## 🛠️ Comandos Útiles
+**En la PC del frontend:**
+Configurar `BACKEND_HOST=192.168.1.135` en el docker-compose del frontend.
 
-### Compilación y Ejecución
+El CORS del API Gateway ya acepta `http://192.168.1.*:*` sin cambios.
+
+---
+
+## Comandos útiles
 
 ```powershell
-# Compilar todos los microservicios
+# Ver logs de todos los servicios en tiempo real
+docker-compose logs -f
+
+# Ver logs de un servicio específico
+docker-compose logs -f api-gateway
+docker-compose logs -f ms-clientes
+
+# Detener todos los servicios
+docker-compose down
+
+# Detener y eliminar volúmenes (borra datos de BD)
+docker-compose down -v
+
+# Reiniciar un solo servicio
+docker-compose restart ms-ventas
+
+# Reconstruir y reiniciar un servicio tras cambios en el código
+docker-compose up -d --build ms-ventas
+```
+
+---
+
+## Estructura del proyecto
+
+```
+grupo-cordillera-servicios/
+├── api-gateway/              # Spring Cloud Gateway + Resilience4j
+│   └── src/main/java/.../
+│       ├── config/
+│       │   └── GatewayConfig.java     # Rutas + CORS + Circuit Breaker
+│       └── controller/
+│           └── FallbackController.java # Respuestas cuando un MS falla
+├── ms-ventas/                # Puntos de venta y transacciones (:9091)
+├── ms-ecommerce/             # Pedidos online (:9092)
+├── ms-inventario/            # Stock y productos (:9093)
+├── ms-financiero/            # KPIs financieros (:9094)
+├── ms-clientes/              # CRM + autenticación JWT (:9095)
+├── docker-compose.yml        # BD + microservicios en un solo archivo
+├── docker-compose-db-only.yml # Solo PostgreSQL (para desarrollo sin Docker)
+├── build-all.ps1             # Compila todos los JAR con Maven
+├── run-all.ps1               # Ejecuta los JAR directamente
+├── start-dev.ps1             # Abre terminales PowerShell por servicio
+└── stop-dev.ps1              # Detiene todos los procesos Java
+```
+
+---
+
+## Patrones de diseño implementados
+
+### Repository Pattern
+Cada microservicio define interfaces que extienden `JpaRepository`. Spring genera las consultas automáticamente por el nombre del método:
+```java
+List<Transaccion> findByPuntoDeVentaId(Long id);
+List<Pedido> findByEstado(String estado);
+```
+
+### Factory Method
+Cada microservicio tiene un `*Factory` que centraliza la conversión entre DTOs y entidades JPA:
+```
+DTO recibido → Factory.crear*() → Entidad JPA → Base de datos
+BD           → Factory.toDTO() → DTO           → Response JSON
+```
+
+### Circuit Breaker (Resilience4j)
+Configurado en el API Gateway para cada microservicio:
+- Abre el circuito si el 50% de llamadas fallan
+- Espera 10 segundos antes de reintentar
+- Devuelve HTTP 503 con mensaje claro si el servicio no responde
+
+---
+
+## Pruebas unitarias
+
+Ejecutar todos los tests:
+```powershell
+# Desde la raíz del proyecto
+mvn test --projects ms-ventas,ms-ecommerce,ms-inventario,ms-financiero,ms-clientes,api-gateway
+```
+
+Ejecutar tests de un servicio específico:
+```powershell
+cd ms-ecommerce
+mvn test
+```
+
+Cobertura por módulo:
+
+| Módulo | Tests | Tipo |
+|---|---|---|
+| ms-ventas | 3 | Unitarios (lógica de cálculo) |
+| ms-ecommerce | 6 | Unitarios con Mockito (PedidoServiceImpl) |
+| ms-inventario | 1 | Integración (@SpringBootTest + H2) |
+| ms-financiero | 3 | Unitarios (cálculo de KPIs) |
+| ms-clientes | 3 | Unitarios (validación de datos) |
+| api-gateway | 3 | Unitarios (rutas y CORS) |
+
+---
+
+## Modo sin Docker Desktop
+
+Si no tienes Docker Desktop, puedes correr solo las BDs en Docker y los microservicios directamente con Maven.
+
+### Requisitos adicionales
+- Java 21+ (`java -version`)
+- Maven 3.9+ (`mvn -v`)
+- Docker (sin Docker Desktop, solo el engine)
+
+### Paso 1 — Solo las bases de datos
+
+```powershell
+docker-compose -f docker-compose-db-only.yml up -d
+```
+
+Espera 30 segundos a que las BDs inicialicen.
+
+### Paso 2 — Compilar todos los microservicios
+
+```powershell
 .\build-all.ps1
-
-# Ejecutar todos en paralelo
-.\run-all.ps1
-
-# Compilar uno específico
-cd ms-clientes
-mvn clean package -DskipTests
-cd ..
 ```
 
-### Ver Logs
+Tarda 3-5 minutos la primera vez.
 
-```powershell
-# Últimas 50 líneas de un servicio
-Get-Content logs/ms-clientes.log -Tail 50
+### Paso 3 — Iniciar los servicios
 
-# Seguir logs en vivo (Ctrl+C para detener)
-Get-Content logs/api-gateway.log -Wait
-
-# Todos los logs
-Get-ChildItem logs/ | ForEach-Object { Write-Host $_.Name; Get-Content $_.FullName | Select-Object -Last 10 }
-```
-
-### Detener Servicios
-
-```powershell
-# Detener BDs (si no necesitas retiniciar)
-docker-compose -f docker-compose-db-only.yml down
-
-# Limpiar todo (incluyendo volúmenes/datos)
-docker-compose -f docker-compose-db-only.yml down -v
-
-# Matar un proceso Java por puerto
-netstat -ano | findstr "9090"  # Encuentra el PID
-taskkill /PID <PID> /F         # Mata el proceso
-```
-
-### Conectar a la Base de Datos
-
-```powershell
-# Desde psql (si está instalado)
-psql -h localhost -U postgres -d db_clientes
-
-# O con docker
-docker exec -it db-clientes psql -U postgres -d db_clientes
-```
-
-## 🐛 Troubleshooting
-
-### Puerto ya está en uso
-
-```powershell
-# Encuentra qué está usando el puerto (ej: 9090)
-netstat -ano | findstr "9090"
-
-# Mata el proceso
-taskkill /PID <PID_NUMBER> /F
-
-# O cambia el puerto en el script run-all.ps1
-```
-
-### Un servicio no inicia
-
-```powershell
-# Ver log del servicio
-Get-Content logs/ms-clientes.log -Tail 100
-
-# Verificar que las BDs están activas
-docker ps | findstr postgres
-
-# Reiniciar BDs
-docker-compose -f docker-compose-db-only.yml restart
-```
-
-### Las BDs no responden
-
-```powershell
-# Reiniciar contenedores
-docker-compose -f docker-compose-db-only.yml down
-docker-compose -f docker-compose-db-only.yml up -d
-
-# Esperar 30 segundos y luego iniciar servicios
-```
-
-### Error de conexión a BD
-
-**Si ves: "FATAL: database XXX does not exist"**
-
-- Las migraciones de Liquibase/Hibernate no corrieron
-- Solución: Limpiar volúmenes y reintentar
-
-```powershell
-docker-compose -f docker-compose-db-only.yml down -v
-docker-compose -f docker-compose-db-only.yml up -d
-Start-Sleep -Seconds 30
-.\run-all.ps1
-```
-
-## 📝 Notas Importantes
-
-- **Espacio en disco**: Solo ~500MB (vs 8GB con Docker Desktop)
-- **Memoria**: Microservicios usan ~200MB cada uno
-- **Datos persistentes**: Se guardan en volúmenes Docker
-- **Puertos**: Todos en localhost, no hay nombre de red
-- **Logs**: Archivo por servicio en `./logs/`
-
-## 🔗 Próximos Pasos
-
-1. ✅ Backend + BD funcionando
-2. ⏳ Integrar con frontend
-3. ⏳ Validar endpoints con Postman/Bruno
-4. ⏳ Desplegar en producción (AWS)
-
-Necesitas **6 terminales PowerShell** abiertas. Ejecuta en cada una desde la carpeta raíz de este repositorio:
-
-**Terminal 1**
-```powershell
-cd ms-ventas ; mvn spring-boot:run
-```
-
-**Terminal 2**
-```powershell
-cd ms-ecommerce ; mvn spring-boot:run
-```
-
-**Terminal 3**
-```powershell
-cd ms-inventario ; mvn spring-boot:run
-```
-
-**Terminal 4**
-```powershell
-cd ms-financiero ; mvn spring-boot:run
-```
-
-**Terminal 5**
-```powershell
-cd ms-clientes ; mvn spring-boot:run
-```
-
-**Terminal 6 — iniciar al final**
-```powershell
-cd api-gateway ; mvn spring-boot:run
-```
-
-O usa el script automático que abre todas las ventanas:
+**Opción A — Script automático (abre una ventana por servicio):**
 ```powershell
 .\start-dev.ps1
 ```
 
----
+**Opción B — Manual (6 terminales separadas):**
+```powershell
+# Terminal 1
+cd ms-ventas; mvn spring-boot:run
 
-## Verificación de endpoints
+# Terminal 2
+cd ms-ecommerce; mvn spring-boot:run
 
-Una vez que todos los servicios están activos, prueba en el navegador:
+# Terminal 3
+cd ms-inventario; mvn spring-boot:run
 
-| Servicio    | URL de prueba                                        |
-|-------------|------------------------------------------------------|
-| Gateway     | http://localhost:9090/actuator/health                |
-| Ventas      | http://localhost:9091/ventas/transacciones            |
-| Ecommerce   | http://localhost:9092/ecommerce/pedidos              |
-| Inventario  | http://localhost:9093/inventario/alertas             |
-| Financiero  | http://localhost:9094/financiero/ingresos            |
-| Clientes    | http://localhost:9095/clientes/activos               |
+# Terminal 4
+cd ms-financiero; mvn spring-boot:run
 
----
+# Terminal 5
+cd ms-clientes; mvn spring-boot:run
 
-## Pipeline CI/CD
+# Terminal 6 — iniciar ÚLTIMO
+cd api-gateway; mvn spring-boot:run
+```
 
-Este repositorio tiene un pipeline de integración continua con **GitHub Actions** que se ejecuta automáticamente en cada `push` a `main`.
-
-El pipeline compila en paralelo los 6 servicios (`mvn package`) y muestra un ✅ si todos pasan o ❌ si alguno falla. El badge en la parte superior de este README refleja el estado del último build.
-
-Ver historial: [Actions → CI — Microservicios](https://github.com/vareeth227/grupo-cordillera-servicios/actions/workflows/ci.yml)
-
----
-
-## Detener (Opción B)
+### Detener servicios (modo sin Docker Desktop)
 
 ```powershell
 .\stop-dev.ps1
 ```
-Luego cierra las ventanas PowerShell de cada servicio.
+
+---
+
+## Troubleshooting
+
+| Problema | Causa probable | Solución |
+|---|---|---|
+| Puerto X ya en uso | Otro proceso ocupa el puerto | `netstat -ano \| findstr "9090"` → `taskkill /PID <N> /F` |
+| Servicio en `unhealthy` | BD aún inicializando | `docker-compose logs postgres-ventas` — esperar o reiniciar |
+| `FATAL: database does not exist` | Volumen corrupto | `docker-compose down -v` y volver a levantar |
+| `Connection refused` al gateway | Microservicio no levantó | `docker-compose logs ms-clientes` para ver el error |
+| Build falla en Maven | Falta Java/Maven | Verificar `java -version` (necesita 21+) |
