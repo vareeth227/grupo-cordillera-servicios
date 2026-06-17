@@ -1,20 +1,31 @@
-name: Deploy — Backend
+name: CD — Build y publicar imágenes Docker
 
 on:
-  workflow_run:
-    workflows: ["CI — Microservicios"]
-    types: [completed]
-    branches: [main]
+  push:
+    branches: [deploy]
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_PREFIX: ghcr.io/${{ github.repository_owner }}
 
 jobs:
   build-and-push:
-    name: Construir y subir imágenes
+    name: Build y push — ${{ matrix.service }}
     runs-on: ubuntu-latest
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
 
     permissions:
       contents: read
       packages: write
+
+    strategy:
+      matrix:
+        service:
+          - ms-ventas
+          - ms-ecommerce
+          - ms-inventario
+          - ms-financiero
+          - ms-clientes
+          - api-gateway
 
     steps:
       - name: Checkout código
@@ -23,76 +34,30 @@ jobs:
       - name: Login a GitHub Container Registry
         uses: docker/login-action@v3
         with:
-          registry: ghcr.io
+          registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build y push ms-ventas
+      - name: Build y push ${{ matrix.service }}
         uses: docker/build-push-action@v5
         with:
-          context: ./ms-ventas
+          context: ./${{ matrix.service }}
+          dockerfile: ./${{ matrix.service }}/Dockerfile
           push: true
-          tags: ghcr.io/${{ github.repository_owner }}/ms-ventas:latest
+          tags: |
+            ${{ env.IMAGE_PREFIX }}/${{ matrix.service }}:latest
+            ${{ env.IMAGE_PREFIX }}/${{ matrix.service }}:${{ github.sha }}
 
-      - name: Build y push ms-ecommerce
-        uses: docker/build-push-action@v5
-        with:
-          context: ./ms-ecommerce
-          push: true
-          tags: ghcr.io/${{ github.repository_owner }}/ms-ecommerce:latest
-
-      - name: Build y push ms-inventario
-        uses: docker/build-push-action@v5
-        with:
-          context: ./ms-inventario
-          push: true
-          tags: ghcr.io/${{ github.repository_owner }}/ms-inventario:latest
-
-      - name: Build y push ms-financiero
-        uses: docker/build-push-action@v5
-        with:
-          context: ./ms-financiero
-          push: true
-          tags: ghcr.io/${{ github.repository_owner }}/ms-financiero:latest
-
-      - name: Build y push ms-clientes
-        uses: docker/build-push-action@v5
-        with:
-          context: ./ms-clientes
-          push: true
-          tags: ghcr.io/${{ github.repository_owner }}/ms-clientes:latest
-
-      - name: Build y push api-gateway
-        uses: docker/build-push-action@v5
-        with:
-          context: ./api-gateway
-          push: true
-          tags: ghcr.io/${{ github.repository_owner }}/api-gateway:latest
-
-  deploy:
-    name: Desplegar en EC2 Backend via SSM
+  deploy-ok:
+    name: Imágenes publicadas
     runs-on: ubuntu-latest
     needs: build-and-push
-
     steps:
-      - name: Configurar credenciales AWS
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
-
-      - name: Desplegar via SSM
+      - name: Resumen
         run: |
-          aws ssm send-command \
-            --instance-ids "${{ secrets.BACKEND_INSTANCE_ID }}" \
-            --document-name "AWS-RunShellScript" \
-            --parameters commands='[
-              "echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin",
-              "cd /home/ec2-user/cordillera",
-              "docker-compose pull",
-              "docker-compose up -d --remove-orphans",
-              "echo Servicios activos:",
-              "docker ps --format \"table {{.Names}}\t{{.Status}}\""
-            ]' \
-            --region "${{ secrets.AWS_REGION }}"
+          echo "Imágenes publicadas en ghcr.io/${{ github.repository_owner }}"
+          echo "Tag: latest y ${{ github.sha }}"
+          echo ""
+          echo "Para usar en otro PC (LAN):"
+          echo "  docker pull ghcr.io/${{ github.repository_owner }}/api-gateway:latest"
+          echo "  docker-compose up -d"
