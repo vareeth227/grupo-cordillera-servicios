@@ -66,6 +66,22 @@ management:
 jwt:
   secret: ${JWT_SECRET:cordillera-jwt-secret-2024-fullstack3-grupo}
 
+# Eureka Client: el gateway también se registra en el servidor de descubrimiento
+eureka:
+  client:
+    service-url:
+      defaultZone: http://${EUREKA_HOST:localhost}:8761/eureka/
+    registry-fetch-interval-seconds: 10
+  instance:
+    prefer-ip-address: true
+
+# Swagger/OpenAPI
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+
 logging:
   level:
     "[org.springframework.cloud.gateway]": INFO

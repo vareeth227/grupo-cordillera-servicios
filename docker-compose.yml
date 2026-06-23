@@ -113,6 +113,27 @@ services:
       timeout: 5s
       retries: 5
 
+  # ==================== EUREKA SERVER ====================
+
+  eureka-server:
+    build:
+      context: ./eureka-server
+      dockerfile: Dockerfile
+    container_name: eureka-server
+    environment:
+      SERVER_PORT: 8761
+    ports:
+      - "8761:8761"
+    networks:
+      - cordillera-net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8761/actuator/health || exit 1"]
+      interval: 20s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
   # ==================== MICROSERVICIOS ====================
 
   # Microservicio de Ventas - gestión de puntos de venta y transacciones
@@ -126,12 +147,15 @@ services:
       SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-postgres}
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
       SERVER_PORT: 9091
+      EUREKA_HOST: eureka-server
     ports:
       - "9091:9091"
     networks:
       - cordillera-net
     depends_on:
       postgres-ventas:
+        condition: service_healthy
+      eureka-server:
         condition: service_healthy
     restart: unless-stopped
     healthcheck:
@@ -154,6 +178,7 @@ services:
       SERVER_PORT: 9092
       MS_CLIENTES_URL: http://ms-clientes:9095
       MS_INVENTARIO_URL: http://ms-inventario:9093
+      EUREKA_HOST: eureka-server
     ports:
       - "9092:9092"
     networks:
@@ -164,6 +189,8 @@ services:
       ms-clientes:
         condition: service_healthy
       ms-inventario:
+        condition: service_healthy
+      eureka-server:
         condition: service_healthy
     restart: unless-stopped
     healthcheck:
@@ -183,12 +210,15 @@ services:
       SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-postgres}
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
       SERVER_PORT: 9093
+      EUREKA_HOST: eureka-server
     ports:
       - "9093:9093"
     networks:
       - cordillera-net
     depends_on:
       postgres-inventario:
+        condition: service_healthy
+      eureka-server:
         condition: service_healthy
     restart: unless-stopped
     healthcheck:
@@ -208,12 +238,15 @@ services:
       SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-postgres}
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
       SERVER_PORT: 9094
+      EUREKA_HOST: eureka-server
     ports:
       - "9094:9094"
     networks:
       - cordillera-net
     depends_on:
       postgres-financiero:
+        condition: service_healthy
+      eureka-server:
         condition: service_healthy
     restart: unless-stopped
     healthcheck:
@@ -234,12 +267,15 @@ services:
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
       SERVER_PORT: 9095
       JWT_SECRET: ${JWT_SECRET:-cordillera-jwt-secret-2024-fullstack3-grupo}
+      EUREKA_HOST: eureka-server
     ports:
       - "9095:9095"
     networks:
       - cordillera-net
     depends_on:
       postgres-clientes:
+        condition: service_healthy
+      eureka-server:
         condition: service_healthy
     restart: unless-stopped
     healthcheck:
@@ -263,6 +299,7 @@ services:
       MS_CLIENTES_URL: http://ms-clientes:9095
       JWT_SECRET: ${JWT_SECRET:-cordillera-jwt-secret-2024-fullstack3-grupo}
       CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:5173,http://localhost:3000}
+      EUREKA_HOST: eureka-server
     ports:
       - "9090:9090"
     networks:
@@ -273,6 +310,7 @@ services:
       - ms-inventario
       - ms-financiero
       - ms-clientes
+      - eureka-server
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:9090/actuator/health || exit 1"]

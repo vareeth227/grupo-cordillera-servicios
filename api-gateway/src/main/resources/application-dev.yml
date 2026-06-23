@@ -1,0 +1,107 @@
+# ============================================================
+# application-dev.yml - Configuración de desarrollo
+# Usar con: spring.profiles.active=dev
+# ============================================================
+
+spring:
+  application:
+    name: api-gateway
+  main:
+    web-application-type: reactive
+
+  # ==================== SEGURIDAD ====================
+  security:
+    filter:
+      order: 5
+
+  # ==================== CACHÉ ====================
+  cache:
+    type: simple  # En prod usar redis
+
+# ==================== JWT ====================
+app:
+  jwt:
+    secret: ${JWT_SECRET:clave-desarrollo-cambiar-en-produccion-minimo-32-caracteres}
+    expiration: ${JWT_EXPIRATION:86400000}  # 24 horas
+    refresh-expiration: ${JWT_REFRESH_EXPIRATION:604800000}  # 7 días
+
+# ==================== SERVIDOR ====================
+server:
+  port: ${SERVER_PORT:8080}
+  shutdown: graceful
+  tomcat:
+    threads:
+      max: 200
+      min-spare: 10
+
+# ==================== RESILIENCE4J CIRCUIT BREAKER ====================
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        failure-rate-threshold: 50
+        minimum-number-of-calls: 5
+        wait-duration-in-open-state: 10s
+        permitted-number-of-calls-in-half-open-state: 3
+        sliding-window-size: 10
+    instances:
+      cb-ventas:
+        base-config: default
+      cb-ecommerce:
+        base-config: default
+      cb-inventario:
+        base-config: default
+      cb-financiero:
+        base-config: default
+      cb-clientes:
+        base-config: default
+
+  timelimiter:
+    configs:
+      default:
+        timeout-duration: 3s
+    instances:
+      cb-ventas:
+        base-config: default
+      cb-ecommerce:
+        base-config: default
+      cb-inventario:
+        base-config: default
+      cb-financiero:
+        base-config: default
+      cb-clientes:
+        base-config: default
+
+# ==================== ACTUATOR ====================
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,circuitbreakers,metrics
+  endpoint:
+    health:
+      show-details: always
+  metrics:
+    export:
+      simple:
+        enabled: true
+
+# ==================== LOGGING ====================
+logging:
+  level:
+    root: INFO
+    "[org.springframework.cloud.gateway]": INFO
+    "[org.springframework.security]": DEBUG
+    "[com.grupocordillera]": DEBUG
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+
+# ==================== SPRINGDOC OPENAPI ====================
+springdoc:
+  swagger-ui:
+    enabled: true
+    path: /swagger-ui.html
+    operations-sorter: method
+  api-docs:
+    path: /v3/api-docs

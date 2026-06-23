@@ -1,20 +1,28 @@
-# Maven
-*/target/
-**/target/
-*.class
-*.jar
+# ============================================================
+# .gitignore - Grupo Cordillera
+# ============================================================
 
-# IDE
+# Maven - archivos compilados (se regeneran con mvn)
+**/target/
+**/.mvn/wrapper/maven-wrapper.jar
+
+# Node - dependencias (se regeneran con npm install)
+**/node_modules/
+**/dist/
+
+# Variables de entorno y claves privadas (nunca subir)
+.env
+*.pem
+*.key
+
+# IDEs
 .idea/
 *.iml
-.vscode/
-*.suo
-*.user
+.vscode/settings.json
+.classpath
+.project
+.settings/
 
-# Entorno
-.env
-.env.local
-
-# OS
+# Sistemas operativos
 .DS_Store
 Thumbs.db

@@ -1,0 +1,54 @@
+Repositorios del Proyecto — Grupo Cordillera
+Evaluación Parcial 3 — DSY1106 Fullstack III — DuocUC
+============================================================
+
+REPOSITORIO PRINCIPAL (Monorepo)
+---------------------------------
+URL:         https://github.com/vareeth227/grupo-cordillera-fullstack3
+Descripción: Monorepo principal que consolida tanto el backend (microservicios)
+             como el frontend (React + Vite). Contiene el código completo del
+             sistema Grupo Cordillera para evaluación.
+Contenido:
+  - eureka-server/     → Spring Cloud Netflix Eureka Server (Service Discovery, :8761)
+  - api-gateway/       → Spring Cloud Gateway + BFF + JWT + Resilience4j (:9090)
+  - ms-ventas/         → Microservicio de ventas y puntos de venta (:9091)
+  - ms-ecommerce/      → Microservicio de pedidos online (:9092)
+  - ms-inventario/     → Microservicio de inventario y alertas de stock (:9093)
+  - ms-financiero/     → Microservicio de KPIs financieros (:9094)
+  - ms-clientes/       → Microservicio de CRM + autenticación JWT (:9095)
+  - frontend/          → Aplicación React 18 + Vite (:5173)
+  - docker-compose.yml → Stack completo: BDs + Eureka + microservicios + gateway
+
+
+REPOSITORIO BACKEND (Microservicios)
+--------------------------------------
+URL:         https://github.com/vareeth227/grupo-cordillera-servicios
+Descripción: Backend completo del sistema: Eureka Server, API Gateway y 5
+             microservicios Spring Boot 3.3 con sus bases de datos PostgreSQL.
+             Incluye autenticación JWT, Circuit Breaker, Swagger/OpenAPI y
+             cobertura de tests ≥60% con JaCoCo.
+Tecnologías: Java 21, Spring Boot 3.3.0, Spring Cloud 2023.0.1, PostgreSQL 15,
+             Docker, Maven, Resilience4j, Liquibase, springdoc-openapi 2.3.0
+
+
+REPOSITORIO FRONTEND
+---------------------
+URL:         https://github.com/vareeth227/grupo-cordillera-frontend
+Descripción: Frontend React del sistema Grupo Cordillera. Interfaz de usuario
+             con secciones para ventas, ecommerce, inventario, financiero y
+             CRM de clientes. Consume el API Gateway con autenticación JWT.
+Tecnologías: React 18, Vite, Vitest, @testing-library/react, Docker (nginx)
+
+
+INSTRUCCIONES PARA EVALUACIÓN EN 2 PCs
+----------------------------------------
+PC-B (backend):  docker-compose up -d --build
+                 → Levanta: 5 BDs + Eureka Server + 5 microservicios + API Gateway
+                 → Puertos: 5432-5436 (BD), 8761 (Eureka), 9090-9095 (servicios)
+
+PC-A (frontend): VITE_API_GATEWAY_URL=http://<IP-PC-B>:9090 docker-compose up -d
+                 → Levanta: nginx sirviendo la app React compilada
+                 → Puerto: 80 (o 5173 con npm run dev)
+
+Verificar:       curl http://<IP-PC-B>:9090/actuator/health
+                 Eureka: http://<IP-PC-B>:8761

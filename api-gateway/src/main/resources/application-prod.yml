@@ -1,0 +1,123 @@
+# ============================================================
+# application-prod.yml - Configuración de producción
+# Usar con: spring.profiles.active=prod
+# IMPORTANTE: Configurar variables de entorno antes de desplegar
+# ============================================================
+
+spring:
+  application:
+    name: api-gateway
+  main:
+    web-application-type: reactive
+
+  # ==================== SEGURIDAD ====================
+  security:
+    filter:
+      order: 5
+
+  # ==================== CACHÉ ====================
+  cache:
+    type: redis  # En producción usar Redis
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      timeout: 60000
+
+# ==================== JWT - DEBE SER CONFIGURADO EN VARIABLES DE ENTORNO ====================
+app:
+  jwt:
+    secret: ${JWT_SECRET:CAMBIAR_EN_PRODUCCION_CLAVE_SECRETA_DE_MINIMO_32_CARACTERES}
+    expiration: ${JWT_EXPIRATION:86400000}  # 24 horas
+    refresh-expiration: ${JWT_REFRESH_EXPIRATION:604800000}  # 7 días
+
+# ==================== SERVIDOR ====================
+server:
+  port: ${SERVER_PORT:8080}
+  servlet:
+    context-path: /
+  shutdown: graceful
+  tomcat:
+    threads:
+      max: 500  # Más threads para producción
+      min-spare: 50
+  ssl:
+    enabled: ${SSL_ENABLED:false}
+    key-store: ${SSL_KEYSTORE:}
+    key-store-password: ${SSL_KEYSTORE_PASSWORD:}
+    key-store-type: PKCS12
+    key-alias: ${SSL_KEY_ALIAS:}
+
+# ==================== RESILIENCE4J CIRCUIT BREAKER ====================
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        failure-rate-threshold: 50
+        minimum-number-of-calls: 10  # Más llamadas antes de evaluar
+        wait-duration-in-open-state: 30s  # Más tiempo de espera
+        permitted-number-of-calls-in-half-open-state: 3
+        sliding-window-size: 20
+    instances:
+      cb-ventas:
+        base-config: default
+      cb-ecommerce:
+        base-config: default
+      cb-inventario:
+        base-config: default
+      cb-financiero:
+        base-config: default
+      cb-clientes:
+        base-config: default
+
+  timelimiter:
+    configs:
+      default:
+        timeout-duration: 5s  # Timeouts más largos en producción
+    instances:
+      cb-ventas:
+        base-config: default
+      cb-ecommerce:
+        base-config: default
+      cb-inventario:
+        base-config: default
+      cb-financiero:
+        base-config: default
+      cb-clientes:
+        base-config: default
+
+# ==================== ACTUATOR ====================
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics  # No exponer circuitbreakers en prod
+  endpoint:
+    health:
+      show-details: when-authorized  # Solo para usuarios autorizados
+  metrics:
+    export:
+      prometheus:
+        enabled: true  # Para monitoreo con Prometheus
+
+# ==================== LOGGING - CON ARCHIVOS ====================
+logging:
+  level:
+    root: WARN  # Menos logs en producción
+    "[org.springframework.cloud.gateway]": WARN
+    "[org.springframework.security]": WARN
+    "[com.grupocordillera]": INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+  file:
+    name: logs/api-gateway.log
+    max-size: 10MB
+    max-history: 30
+    total-size-cap: 1GB
+
+# ==================== SPRINGDOC OPENAPI ====================
+springdoc:
+  swagger-ui:
+    enabled: ${SWAGGER_ENABLED:false}  # Deshabilitar Swagger en producción
+  api-docs:
+    enabled: ${SWAGGER_ENABLED:false}

@@ -1,6 +1,6 @@
 # Grupo Cordillera — Backend (Microservicios + Base de Datos)
 
-Backend completo del sistema Grupo Cordillera: **5 microservicios Spring Boot**, **5 bases de datos PostgreSQL** y **API Gateway** levantados con un solo comando Docker.
+Backend completo del sistema Grupo Cordillera: **Eureka Server**, **5 microservicios Spring Boot**, **5 bases de datos PostgreSQL** y **API Gateway** levantados con un solo comando Docker.
 
 ---
 
@@ -8,7 +8,7 @@ Backend completo del sistema Grupo Cordillera: **5 microservicios Spring Boot**,
 
 ```
                         ┌─────────────────────────────┐
-  Frontend :5173  ──►   │   API Gateway  :9090         │
+  Frontend :5173  ──►   │   API Gateway  :9090         │  ◄── BFF (Backend for Frontend)
                         │   (Spring Cloud Gateway)     │
                         └────────────┬────────────────┘
                                      │ enruta según /api/{servicio}/**
@@ -19,9 +19,14 @@ Backend completo del sistema Grupo Cordillera: **5 microservicios Spring Boot**,
               │          │           │             │          │
            db_ventas db_ecommerce db_inventario db_financiero db_clientes
             :5432     :5433        :5434          :5435       :5436
+
+  Todos los servicios se registran en:
+        ┌─────────────────────────────┐
+        │   Eureka Server  :8761      │  ← Service Discovery
+        └─────────────────────────────┘
 ```
 
-Cada microservicio tiene su propia base de datos PostgreSQL. El API Gateway es el único punto de entrada desde el exterior.
+Cada microservicio tiene su propia base de datos PostgreSQL. El API Gateway actúa como **BFF (Backend for Frontend)** — único punto de entrada desde el frontend. Eureka Server gestiona el registro y descubrimiento de servicios.
 
 ---
 
@@ -53,7 +58,8 @@ docker-compose up -d --build
 
 Este comando hace todo automáticamente:
 - Crea las 5 bases de datos PostgreSQL
-- Compila e inicia los 5 microservicios
+- Levanta el **Eureka Server** (Service Discovery)
+- Compila e inicia los 5 microservicios (esperan a que Eureka esté sano)
 - Levanta el API Gateway
 - Espera a que cada BD esté sana antes de iniciar su microservicio (healthchecks)
 
@@ -81,12 +87,14 @@ Desde el navegador o Postman:
 
 | Servicio | URL directa | A través del Gateway |
 |---|---|---|
+| **Eureka Server** | `http://localhost:8761` | — |
 | API Gateway | `http://localhost:9090/actuator/health` | — |
-| Ventas | `http://localhost:9091/actuator/health` | `http://localhost:9090/api/ventas/transacciones` |
-| Ecommerce | `http://localhost:9092/actuator/health` | `http://localhost:9090/api/ecommerce/pedidos` |
-| Inventario | `http://localhost:9093/actuator/health` | `http://localhost:9090/api/inventario/alertas` |
-| Financiero | `http://localhost:9094/actuator/health` | `http://localhost:9090/api/financiero/ingresos` |
-| Clientes | `http://localhost:9095/actuator/health` | `http://localhost:9090/api/clientes/activos` |
+| Swagger Gateway | `http://localhost:9090/swagger-ui.html` | — |
+| Ventas | `http://localhost:9091/swagger-ui.html` | `http://localhost:9090/api/ventas/transacciones` |
+| Ecommerce | `http://localhost:9092/swagger-ui.html` | `http://localhost:9090/api/ecommerce/pedidos` |
+| Inventario | `http://localhost:9093/swagger-ui.html` | `http://localhost:9090/api/inventario/alertas` |
+| Financiero | `http://localhost:9094/swagger-ui.html` | `http://localhost:9090/api/financiero/ingresos` |
+| Clientes | `http://localhost:9095/swagger-ui.html` | `http://localhost:9090/api/clientes/activos` |
 
 ---
 
@@ -110,24 +118,42 @@ CORS_ALLOWED_ORIGINS=http://localhost:5173,http://localhost:3000
 
 ---
 
-## Escenario dos PCs (presentación)
+## Escenario dos PCs (evaluación)
 
-Si el **frontend corre en otra PC** de la misma red:
+El sistema está diseñado para correr en **2 PCs de la misma red LAN**:
+- **PC-B (esta):** corre las BDs, Eureka Server, los 5 microservicios y el API Gateway
+- **PC-A:** corre solo el frontend
 
-**En esta PC (backend):**
+### PC-B — Levantar el backend completo
+
 ```powershell
-# 1. Obtener la IP de esta máquina
+# 1. Obtener la IP de esta máquina (busca "Dirección IPv4")
 ipconfig
-# Busca: "Dirección IPv4" → ejemplo: 192.168.1.135
+# Ejemplo: 192.168.1.135
 
-# 2. Levantar el backend (sin cambios)
-docker-compose up -d
+# 2. Levantar todo
+docker-compose up -d --build
 ```
 
-**En la PC del frontend:**
-Configurar `BACKEND_HOST=192.168.1.135` en el docker-compose del frontend.
+### PC-A — Levantar el frontend apuntando a PC-B
 
-El CORS del API Gateway ya acepta `http://192.168.1.*:*` sin cambios.
+```powershell
+# En la PC del frontend, crear o editar frontend/.env
+# Reemplaza 192.168.1.135 con la IP real de PC-B
+VITE_API_GATEWAY_URL=http://192.168.1.135:9090
+
+# Levantar el frontend
+cd frontend
+docker-compose up -d --build
+# O sin Docker:
+npm install && npm run dev
+```
+
+El CORS del API Gateway ya incluye `http://192.168.1.*:*` para aceptar peticiones de la red local.
+
+> **Verificar conectividad:** desde PC-A ejecutar
+> `curl http://192.168.1.135:9090/actuator/health`
+> Debe responder `{"status":"UP"}`
 
 ---
 
@@ -160,23 +186,28 @@ docker-compose up -d --build ms-ventas
 
 ```
 grupo-cordillera-servicios/
-├── api-gateway/              # Spring Cloud Gateway + Resilience4j
+├── eureka-server/            # Spring Cloud Netflix Eureka Server (:8761)
+├── api-gateway/              # Spring Cloud Gateway + Resilience4j + BFF (:9090)
 │   └── src/main/java/.../
 │       ├── config/
-│       │   └── GatewayConfig.java     # Rutas + CORS + Circuit Breaker
+│       │   ├── GatewayConfig.java      # Rutas + CORS + Circuit Breaker
+│       │   └── CorsConfig.java         # Configuración CORS global
+│       ├── security/
+│       │   ├── JwtAuthFilter.java      # Filtro JWT en cada request
+│       │   └── JwtUtil.java            # Utilidades JWT
 │       └── controller/
 │           └── FallbackController.java # Respuestas cuando un MS falla
 ├── ms-ventas/                # Puntos de venta y transacciones (:9091)
 ├── ms-ecommerce/             # Pedidos online (:9092)
-├── ms-inventario/            # Stock y productos (:9093)
+├── ms-inventario/            # Stock y productos (:9093) — Factory Pattern
 ├── ms-financiero/            # KPIs financieros (:9094)
 ├── ms-clientes/              # CRM + autenticación JWT (:9095)
-├── docker-compose.yml        # BD + microservicios en un solo archivo
+├── docker-compose.yml        # BD + Eureka + microservicios en un solo archivo
 ├── docker-compose-db-only.yml # Solo PostgreSQL (para desarrollo sin Docker)
+├── docker-compose-services.yml # Solo microservicios (BDs externas vía DB_HOST)
 ├── build-all.ps1             # Compila todos los JAR con Maven
 ├── run-all.ps1               # Ejecuta los JAR directamente
-├── start-dev.ps1             # Abre terminales PowerShell por servicio
-└── stop-dev.ps1              # Detiene todos los procesos Java
+└── start-complete.ps1        # Levanta todo el stack completo
 ```
 
 ---
@@ -203,6 +234,16 @@ Configurado en el API Gateway para cada microservicio:
 - Espera 10 segundos antes de reintentar
 - Devuelve HTTP 503 con mensaje claro si el servicio no responde
 
+### Service Discovery (Spring Cloud Netflix Eureka)
+Cada microservicio se registra automáticamente en el Eureka Server al arrancar:
+- Dashboard en `http://localhost:8761` muestra todos los servicios registrados
+- Variable `EUREKA_HOST` permite configurar la dirección del servidor en Docker
+
+### API Documentation (SpringDoc OpenAPI / Swagger)
+Cada microservicio expone su documentación interactiva:
+- Swagger UI: `http://localhost:{puerto}/swagger-ui.html`
+- JSON schema: `http://localhost:{puerto}/v3/api-docs`
+
 ---
 
 ## Pruebas unitarias
@@ -223,12 +264,13 @@ Cobertura por módulo:
 
 | Módulo | Tests | Tipo |
 |---|---|---|
-| ms-ventas | 3 | Unitarios (lógica de cálculo) |
+| ms-ventas | 12 | Unitarios con Mockito (VentaServiceImpl) |
 | ms-ecommerce | 6 | Unitarios con Mockito (PedidoServiceImpl) |
-| ms-inventario | 1 | Integración (@SpringBootTest + H2) |
-| ms-financiero | 3 | Unitarios (cálculo de KPIs) |
-| ms-clientes | 3 | Unitarios (validación de datos) |
-| api-gateway | 3 | Unitarios (rutas y CORS) |
+| ms-inventario | 14 | Unitarios con Mockito (InventarioServiceImpl) |
+| ms-financiero | 12 | Unitarios con Mockito (FinancieroServiceImpl) |
+| ms-clientes | 14 | Unitarios con Mockito (ClienteServiceImpl) |
+| api-gateway | 1 | Integración (@SpringBootTest) |
+| eureka-server | — | Cobertura vía integración |
 
 ---
 

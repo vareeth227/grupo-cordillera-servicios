@@ -2,7 +2,7 @@
 # Etapa 1: Compilación (Builder)
 # Usa Maven para compilar y empaquetar el JAR
 # ============================================================
-FROM maven:3.9.6-eclipse-temurin-17 AS builder
+FROM maven:3.9.6-eclipse-temurin-21 AS builder
 
 WORKDIR /app
 
@@ -18,7 +18,7 @@ RUN mvn clean package -DskipTests -B
 # Etapa 2: Runtime
 # Solo incluye el JRE y el JAR compilado (imagen más pequeña)
 # ============================================================
-FROM eclipse-temurin:17-jre-alpine
+FROM eclipse-temurin:21-jre-alpine
 
 WORKDIR /app
 
