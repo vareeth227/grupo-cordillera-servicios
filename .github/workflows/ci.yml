@@ -1,0 +1,47 @@
+name: CI — Backend Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    name: Tests — ${{ matrix.service }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        service:
+          - ms-ventas
+          - ms-ecommerce
+          - ms-inventario
+          - ms-financiero
+          - ms-clientes
+
+    steps:
+      - name: Checkout código
+        uses: actions/checkout@v4
+
+      - name: Configurar Java 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Ejecutar tests unitarios — ${{ matrix.service }}
+        run: |
+          mvn -f ${{ matrix.service }}/pom.xml test \
+            -Dtest="!*ApplicationTests" \
+            --batch-mode \
+            --no-transfer-progress
+
+      - name: Publicar reporte JaCoCo — ${{ matrix.service }}
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jacoco-${{ matrix.service }}
+          path: ${{ matrix.service }}/target/site/jacoco/
+          if-no-files-found: ignore
