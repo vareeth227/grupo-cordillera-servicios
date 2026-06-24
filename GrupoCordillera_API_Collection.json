@@ -1,0 +1,869 @@
+{
+  "info": {
+    "_postman_id": "grupo-cordillera-api-v1",
+    "name": "Grupo Cordillera — API REST",
+    "description": "Colección completa de endpoints del sistema Grupo Cordillera.\n\nBase URL: {{base_url}} = http://localhost:9090\n\nFlujo de autenticación:\n1. Ejecutar POST /api/clientes/auth/login\n2. Copiar el token de la respuesta\n3. Pegar el valor en la variable 'token' de esta colección\n4. Todos los demás endpoints usan Bearer {{token}} automáticamente",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:9090",
+      "type": "string",
+      "description": "URL base del API Gateway"
+    },
+    {
+      "key": "token",
+      "value": "",
+      "type": "string",
+      "description": "JWT Bearer Token obtenido desde POST /api/clientes/auth/login"
+    }
+  ],
+  "item": [
+    {
+      "name": "0. Autenticacion",
+      "description": "Endpoint de login. Genera el JWT necesario para el resto de endpoints.",
+      "item": [
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@grupocordillera.cl\",\n  \"password\": \"admin123\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/clientes/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["api", "clientes", "auth", "login"]
+            },
+            "description": "Retorna un JWT. Copiar el campo 'token' de la respuesta y setearlo en la variable 'token' de la colección.\n\nEjemplo de respuesta:\n{\n  \"token\": \"eyJhbGciOiJIUzI1NiJ9...\",\n  \"tipo\": \"Bearer\",\n  \"email\": \"admin@grupocordillera.cl\",\n  \"rol\": \"ADMIN\"\n}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "1. Ventas",
+      "description": "Gestión de puntos de venta y transacciones comerciales. Ruta base: /api/ventas",
+      "item": [
+        {
+          "name": "Listar puntos de venta",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/ventas/puntos",
+              "host": ["{{base_url}}"],
+              "path": ["api", "ventas", "puntos"]
+            },
+            "description": "Retorna todos los puntos de venta registrados.\n\nEjemplo de respuesta:\n[\n  {\n    \"id\": 1,\n    \"nombre\": \"Tienda Centro\",\n    \"direccion\": \"Av. Principal 123\",\n    \"region\": \"RM\",\n    \"activo\": true\n  }\n]"
+          }
+        },
+        {
+          "name": "Listar puntos de venta activos",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/ventas/puntos/activos",
+              "host": ["{{base_url}}"],
+              "path": ["api", "ventas", "puntos", "activos"]
+            },
+            "description": "Retorna solo los puntos de venta con activo=true."
+          }
+        },
+        {
+          "name": "Crear punto de venta",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Tienda Norte\",\n  \"direccion\": \"Av. Recoleta 456\",\n  \"region\": \"RM\",\n  \"activo\": true\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/ventas/puntos",
+              "host": ["{{base_url}}"],
+              "path": ["api", "ventas", "puntos"]
+            },
+            "description": "Crea un nuevo punto de venta. Retorna HTTP 201 con el recurso creado."
+          }
+        },
+        {
+          "name": "Listar transacciones",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/ventas/transacciones",
+              "host": ["{{base_url}}"],
+              "path": ["api", "ventas", "transacciones"]
+            },
+            "description": "Retorna todas las transacciones (ventas y devoluciones)."
+          }
+        },
+        {
+          "name": "Registrar venta",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fecha\": \"2025-01-15T10:30:00\",\n  \"monto\": 50000,\n  \"puntoDeVentaId\": 1,\n  \"productoCodigo\": \"SKU-001\",\n  \"cantidad\": 2,\n  \"tipo\": \"VENTA\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/ventas/transacciones/venta",
+              "host": ["{{base_url}}"],
+              "path": ["api", "ventas", "transacciones", "venta"]
+            },
+            "description": "Registra una venta. El campo tipo se fuerza a VENTA automáticamente."
+          }
+        },
+        {
+          "name": "Registrar devolucion",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fecha\": \"2025-01-15T11:00:00\",\n  \"monto\": 50000,\n  \"puntoDeVentaId\": 1,\n  \"productoCodigo\": \"SKU-001\",\n  \"cantidad\": 2,\n  \"tipo\": \"DEVOLUCION\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/ventas/transacciones/devolucion",
+              "host": ["{{base_url}}"],
+              "path": ["api", "ventas", "transacciones", "devolucion"]
+            },
+            "description": "Registra una devolución. El campo tipo se fuerza a DEVOLUCION automáticamente."
+          }
+        },
+        {
+          "name": "Reporte diario",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/ventas/reporte-diario?fecha=2025-01-15",
+              "host": ["{{base_url}}"],
+              "path": ["api", "ventas", "reporte-diario"],
+              "query": [
+                { "key": "fecha", "value": "2025-01-15", "description": "Formato: YYYY-MM-DD" }
+              ]
+            },
+            "description": "Genera un reporte del día indicado con totalVentas, totalDevoluciones, montoNeto y numeroTransacciones.\n\nEjemplo de respuesta:\n{\n  \"fecha\": \"2025-01-15\",\n  \"totalVentas\": 150000.00,\n  \"totalDevoluciones\": 50000.00,\n  \"montoNeto\": 100000.00,\n  \"numeroTransacciones\": 3\n}"
+          }
+        },
+        {
+          "name": "Eliminar punto de venta",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/ventas/puntos/1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "ventas", "puntos", "1"]
+            },
+            "description": "Elimina el punto de venta con el id indicado. Retorna HTTP 204 sin contenido."
+          }
+        },
+        {
+          "name": "Eliminar transaccion",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/ventas/transacciones/1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "ventas", "transacciones", "1"]
+            },
+            "description": "Elimina la transacción con el id indicado. Retorna HTTP 204 sin contenido."
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Ecommerce",
+      "description": "Gestión de pedidos online. Ruta base: /api/ecommerce",
+      "item": [
+        {
+          "name": "Listar pedidos",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/ecommerce/pedidos",
+              "host": ["{{base_url}}"],
+              "path": ["api", "ecommerce", "pedidos"]
+            },
+            "description": "Retorna todos los pedidos con sus items."
+          }
+        },
+        {
+          "name": "Pedidos por cliente",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/ecommerce/pedidos/cliente/1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "ecommerce", "pedidos", "cliente", "1"]
+            },
+            "description": "Retorna todos los pedidos del cliente con el id indicado."
+          }
+        },
+        {
+          "name": "Pedidos por estado",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/ecommerce/pedidos/estado/PENDIENTE",
+              "host": ["{{base_url}}"],
+              "path": ["api", "ecommerce", "pedidos", "estado", "PENDIENTE"]
+            },
+            "description": "Filtra pedidos por estado. Valores: PENDIENTE, CONFIRMADO, EN_ENVIO, ENTREGADO, CANCELADO."
+          }
+        },
+        {
+          "name": "Obtener pedido por id",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/ecommerce/pedidos/1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "ecommerce", "pedidos", "1"]
+            },
+            "description": "Retorna el pedido completo con sus items. HTTP 404 si no existe."
+          }
+        },
+        {
+          "name": "Crear pedido",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"clienteId\": 1,\n  \"fechaPedido\": \"2025-01-15T10:30:00\",\n  \"estado\": \"PENDIENTE\",\n  \"total\": 150000,\n  \"direccionDespacho\": \"Av. Las Condes 123, Santiago\",\n  \"items\": [\n    {\n      \"productoCodigo\": \"SKU-001\",\n      \"nombreProducto\": \"Laptop Dell\",\n      \"cantidad\": 1,\n      \"precioUnitario\": 150000\n    }\n  ]\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/ecommerce/pedidos",
+              "host": ["{{base_url}}"],
+              "path": ["api", "ecommerce", "pedidos"]
+            },
+            "description": "Crea un nuevo pedido con sus items. Retorna HTTP 201 con el pedido creado."
+          }
+        },
+        {
+          "name": "Actualizar estado de pedido",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/ecommerce/pedidos/1/estado?estado=CONFIRMADO",
+              "host": ["{{base_url}}"],
+              "path": ["api", "ecommerce", "pedidos", "1", "estado"],
+              "query": [
+                { "key": "estado", "value": "CONFIRMADO", "description": "PENDIENTE | CONFIRMADO | EN_ENVIO | ENTREGADO | CANCELADO" }
+              ]
+            },
+            "description": "Actualiza el estado del pedido. Retorna el pedido actualizado."
+          }
+        },
+        {
+          "name": "Eliminar pedido",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/ecommerce/pedidos/1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "ecommerce", "pedidos", "1"]
+            },
+            "description": "Elimina el pedido y sus items en cascada. Retorna HTTP 204."
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Inventario",
+      "description": "Gestión de productos y stock. Ruta base: /api/inventario",
+      "item": [
+        {
+          "name": "Listar productos",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/inventario/productos",
+              "host": ["{{base_url}}"],
+              "path": ["api", "inventario", "productos"]
+            },
+            "description": "Retorna el catálogo completo de productos.\n\nEjemplo de respuesta:\n[\n  {\n    \"id\": 1,\n    \"codigo\": \"SKU-001\",\n    \"nombre\": \"Laptop Dell\",\n    \"categoria\": \"Electrónica\",\n    \"descripcion\": \"Laptop de alta gama\",\n    \"precio\": 999.99,\n    \"activo\": true\n  }\n]"
+          }
+        },
+        {
+          "name": "Listar productos activos",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/inventario/productos/activos",
+              "host": ["{{base_url}}"],
+              "path": ["api", "inventario", "productos", "activos"]
+            },
+            "description": "Retorna solo los productos con activo=true."
+          }
+        },
+        {
+          "name": "Crear producto",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"codigo\": \"SKU-010\",\n  \"nombre\": \"Monitor Samsung 27\",\n  \"categoria\": \"Electrónica\",\n  \"descripcion\": \"Monitor Full HD 27 pulgadas\",\n  \"precio\": 350000,\n  \"activo\": true\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/inventario/productos",
+              "host": ["{{base_url}}"],
+              "path": ["api", "inventario", "productos"]
+            },
+            "description": "Crea un nuevo producto en el catálogo. El campo codigo debe ser único."
+          }
+        },
+        {
+          "name": "Listar stock",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/inventario/stock",
+              "host": ["{{base_url}}"],
+              "path": ["api", "inventario", "stock"]
+            },
+            "description": "Retorna el stock de todos los productos en todos los almacenes."
+          }
+        },
+        {
+          "name": "Stock por producto",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/inventario/stock/producto/1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "inventario", "stock", "producto", "1"]
+            },
+            "description": "Retorna el stock disponible del producto con el id indicado, por almacén."
+          }
+        },
+        {
+          "name": "Crear stock",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"productoId\": 1,\n  \"cantidad\": 50,\n  \"umbralMinimo\": 10,\n  \"almacen\": \"Almacén Central\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/inventario/stock",
+              "host": ["{{base_url}}"],
+              "path": ["api", "inventario", "stock"]
+            },
+            "description": "Registra stock de un producto en un almacén."
+          }
+        },
+        {
+          "name": "Actualizar cantidad de stock",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/inventario/stock/1?cantidad=75",
+              "host": ["{{base_url}}"],
+              "path": ["api", "inventario", "stock", "1"],
+              "query": [
+                { "key": "cantidad", "value": "75", "description": "Nueva cantidad disponible" }
+              ]
+            },
+            "description": "Actualiza la cantidad disponible del registro de stock indicado."
+          }
+        },
+        {
+          "name": "Alertas de inventario",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/inventario/alertas",
+              "host": ["{{base_url}}"],
+              "path": ["api", "inventario", "alertas"]
+            },
+            "description": "Retorna productos cuyo stock actual está por debajo del umbral mínimo.\n\nEjemplo de respuesta:\n[\n  {\n    \"codigoProducto\": \"SKU-001\",\n    \"nombreProducto\": \"Laptop Dell\",\n    \"cantidadActual\": 2,\n    \"umbralMinimo\": 10,\n    \"unidadesFaltantes\": 8\n  }\n]"
+          }
+        },
+        {
+          "name": "Eliminar producto",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/inventario/productos/1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "inventario", "productos", "1"]
+            },
+            "description": "Elimina el producto con el id indicado. Retorna HTTP 204."
+          }
+        },
+        {
+          "name": "Eliminar stock",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/inventario/stock/1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "inventario", "stock", "1"]
+            },
+            "description": "Elimina el registro de stock con el id indicado. Retorna HTTP 204."
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Financiero",
+      "description": "Gestión de ingresos, egresos y KPIs financieros. Ruta base: /api/financiero",
+      "item": [
+        {
+          "name": "Listar ingresos",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/financiero/ingresos",
+              "host": ["{{base_url}}"],
+              "path": ["api", "financiero", "ingresos"]
+            },
+            "description": "Retorna todos los ingresos registrados."
+          }
+        },
+        {
+          "name": "Ingresos por periodo",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/financiero/ingresos/periodo?inicio=2025-01-01&fin=2025-01-31",
+              "host": ["{{base_url}}"],
+              "path": ["api", "financiero", "ingresos", "periodo"],
+              "query": [
+                { "key": "inicio", "value": "2025-01-01", "description": "Fecha inicio YYYY-MM-DD" },
+                { "key": "fin", "value": "2025-01-31", "description": "Fecha fin YYYY-MM-DD" }
+              ]
+            },
+            "description": "Filtra ingresos dentro del rango de fechas indicado."
+          }
+        },
+        {
+          "name": "Registrar ingreso",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"concepto\": \"Venta mensual enero\",\n  \"monto\": 5000000,\n  \"fecha\": \"2025-01-15\",\n  \"categoria\": \"VENTAS\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/financiero/ingresos",
+              "host": ["{{base_url}}"],
+              "path": ["api", "financiero", "ingresos"]
+            },
+            "description": "Registra un nuevo ingreso. Categorías: VENTAS, SERVICIOS, INVERSIONES, OTROS."
+          }
+        },
+        {
+          "name": "Listar egresos",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/financiero/egresos",
+              "host": ["{{base_url}}"],
+              "path": ["api", "financiero", "egresos"]
+            },
+            "description": "Retorna todos los egresos registrados."
+          }
+        },
+        {
+          "name": "Egresos por periodo",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/financiero/egresos/periodo?inicio=2025-01-01&fin=2025-01-31",
+              "host": ["{{base_url}}"],
+              "path": ["api", "financiero", "egresos", "periodo"],
+              "query": [
+                { "key": "inicio", "value": "2025-01-01", "description": "Fecha inicio YYYY-MM-DD" },
+                { "key": "fin", "value": "2025-01-31", "description": "Fecha fin YYYY-MM-DD" }
+              ]
+            },
+            "description": "Filtra egresos dentro del rango de fechas indicado."
+          }
+        },
+        {
+          "name": "Registrar egreso",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"concepto\": \"Pago arriendo enero\",\n  \"monto\": 800000,\n  \"fecha\": \"2025-01-05\",\n  \"categoria\": \"ARRIENDO\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/financiero/egresos",
+              "host": ["{{base_url}}"],
+              "path": ["api", "financiero", "egresos"]
+            },
+            "description": "Registra un nuevo egreso. Categorías: SUELDOS, ARRIENDO, INSUMOS, SERVICIOS, OTROS."
+          }
+        },
+        {
+          "name": "Calcular KPIs financieros",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/financiero/kpis?inicio=2025-01-01&fin=2025-01-31",
+              "host": ["{{base_url}}"],
+              "path": ["api", "financiero", "kpis"],
+              "query": [
+                { "key": "inicio", "value": "2025-01-01", "description": "Fecha inicio YYYY-MM-DD" },
+                { "key": "fin", "value": "2025-01-31", "description": "Fecha fin YYYY-MM-DD" }
+              ]
+            },
+            "description": "Calcula indicadores financieros del período.\n\nEjemplo de respuesta:\n{\n  \"totalIngresos\": 5000000.00,\n  \"totalEgresos\": 800000.00,\n  \"utilidadBruta\": 4200000.00,\n  \"margenUtilidad\": 84.0\n}"
+          }
+        },
+        {
+          "name": "Eliminar ingreso",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/financiero/ingresos/1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "financiero", "ingresos", "1"]
+            },
+            "description": "Elimina el ingreso con el id indicado. Retorna HTTP 204."
+          }
+        },
+        {
+          "name": "Eliminar egreso",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/financiero/egresos/1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "financiero", "egresos", "1"]
+            },
+            "description": "Elimina el egreso con el id indicado. Retorna HTTP 204."
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. Clientes",
+      "description": "CRM de clientes y gestión de tickets de atención. Ruta base: /api/clientes",
+      "item": [
+        {
+          "name": "Listar clientes",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/clientes",
+              "host": ["{{base_url}}"],
+              "path": ["api", "clientes"]
+            },
+            "description": "Retorna todos los clientes registrados.\n\nEjemplo de respuesta:\n[\n  {\n    \"id\": 1,\n    \"nombre\": \"María\",\n    \"apellido\": \"González\",\n    \"email\": \"maria.gonzalez@example.com\",\n    \"telefono\": \"+56912345678\",\n    \"fechaRegistro\": \"2024-01-15\",\n    \"activo\": true\n  }\n]"
+          }
+        },
+        {
+          "name": "Listar clientes activos",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/clientes/activos",
+              "host": ["{{base_url}}"],
+              "path": ["api", "clientes", "activos"]
+            },
+            "description": "Retorna solo los clientes con activo=true."
+          }
+        },
+        {
+          "name": "Obtener cliente por id",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/clientes/1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "clientes", "1"]
+            },
+            "description": "Retorna el cliente con el id indicado. HTTP 404 si no existe."
+          }
+        },
+        {
+          "name": "Registrar cliente",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Carlos\",\n  \"apellido\": \"Muñoz\",\n  \"email\": \"carlos.munoz@example.com\",\n  \"telefono\": \"+56987654321\",\n  \"fechaRegistro\": \"2025-01-15\",\n  \"activo\": true\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/clientes",
+              "host": ["{{base_url}}"],
+              "path": ["api", "clientes"]
+            },
+            "description": "Registra un nuevo cliente en el CRM. El email debe ser único."
+          }
+        },
+        {
+          "name": "Listar todos los tickets",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/clientes/tickets",
+              "host": ["{{base_url}}"],
+              "path": ["api", "clientes", "tickets"]
+            },
+            "description": "Retorna todos los tickets de atención de todos los clientes."
+          }
+        },
+        {
+          "name": "Tickets por cliente",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/clientes/1/tickets",
+              "host": ["{{base_url}}"],
+              "path": ["api", "clientes", "1", "tickets"]
+            },
+            "description": "Retorna todos los tickets del cliente con el id indicado."
+          }
+        },
+        {
+          "name": "Tickets por estado",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/clientes/tickets/estado/ABIERTO",
+              "host": ["{{base_url}}"],
+              "path": ["api", "clientes", "tickets", "estado", "ABIERTO"]
+            },
+            "description": "Filtra tickets por estado. Valores: ABIERTO, EN_PROCESO, RESUELTO, CERRADO."
+          }
+        },
+        {
+          "name": "Crear ticket de atencion",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"clienteId\": 1,\n  \"asunto\": \"Problema con pedido #1234\",\n  \"descripcion\": \"Mi pedido no llegó en el plazo prometido\",\n  \"estado\": \"ABIERTO\",\n  \"categoria\": \"RECLAMO\",\n  \"fechaCreacion\": \"2025-01-15T10:30:00\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/clientes/tickets",
+              "host": ["{{base_url}}"],
+              "path": ["api", "clientes", "tickets"]
+            },
+            "description": "Crea un nuevo ticket de atención. Categorías: RECLAMO, CONSULTA, SOPORTE_TECNICO, DEVOLUCION."
+          }
+        },
+        {
+          "name": "Actualizar estado de ticket",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/clientes/tickets/1/estado?estado=RESUELTO",
+              "host": ["{{base_url}}"],
+              "path": ["api", "clientes", "tickets", "1", "estado"],
+              "query": [
+                { "key": "estado", "value": "RESUELTO", "description": "ABIERTO | EN_PROCESO | RESUELTO | CERRADO" }
+              ]
+            },
+            "description": "Actualiza el estado del ticket. Al pasar a RESUELTO, se registra automáticamente la fechaResolucion."
+          }
+        },
+        {
+          "name": "Desactivar cliente",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/clientes/1/desactivar",
+              "host": ["{{base_url}}"],
+              "path": ["api", "clientes", "1", "desactivar"]
+            },
+            "description": "Desactiva el cliente (activo=false) sin eliminarlo. Retorna HTTP 204."
+          }
+        },
+        {
+          "name": "Eliminar cliente",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/clientes/1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "clientes", "1"]
+            },
+            "description": "Elimina el cliente y sus tickets en cascada. Retorna HTTP 204."
+          }
+        },
+        {
+          "name": "Eliminar ticket",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/clientes/tickets/1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "clientes", "tickets", "1"]
+            },
+            "description": "Elimina el ticket con el id indicado. Retorna HTTP 204."
+          }
+        }
+      ]
+    }
+  ]
+}
