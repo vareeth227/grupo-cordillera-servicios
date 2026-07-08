@@ -1,5 +1,5 @@
 server:
-  port: ${SERVER_PORT:9090}
+  port: ${PORT:${SERVER_PORT:9090}}
 
 spring:
   application:
@@ -38,8 +38,8 @@ resilience4j:
   timelimiter:
     configs:
       default:
-        # Tiempo máximo de espera por respuesta de un microservicio
-        timeout-duration: 3s
+        # Tiempo máximo de espera por respuesta de un microservicio (15s para Railway cold starts)
+        timeout-duration: 15s
     instances:
       cb-ventas:
         base-config: default
@@ -65,15 +65,6 @@ management:
 # JWT - mismo secreto que ms-clientes (inyectado via JWT_SECRET en Docker)
 jwt:
   secret: ${JWT_SECRET:cordillera-jwt-secret-2024-fullstack3-grupo}
-
-# Eureka Client: el gateway también se registra en el servidor de descubrimiento
-eureka:
-  client:
-    service-url:
-      defaultZone: http://${EUREKA_HOST:localhost}:8761/eureka/
-    registry-fetch-interval-seconds: 10
-  instance:
-    prefer-ip-address: true
 
 # Swagger/OpenAPI
 springdoc:

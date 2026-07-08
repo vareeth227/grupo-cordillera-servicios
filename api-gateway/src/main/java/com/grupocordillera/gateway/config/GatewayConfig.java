@@ -124,11 +124,9 @@ public class GatewayConfig {
             "http://localhost:*",
             "http://192.168.1.*:*",
             "http://10.155.25.*:*",
-            "http://54.196.217.78:*",
-            "http://*.local:*",
-            "https://grupo-cordillera-frontend-phi.vercel.app",
-            "https://grupo-cordillera-frontend-ngpiwngro-bfv2026.vercel.app",
-            "https://*.vercel.app"
+            "https://*.vercel.app",
+            "https://*.railway.app",
+            "https://*.up.railway.app"
         ));
         
         config.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));

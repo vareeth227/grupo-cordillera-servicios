@@ -43,12 +43,6 @@
             <artifactId>spring-cloud-starter-circuitbreaker-reactor-resilience4j</artifactId>
         </dependency>
 
-        <!-- Eureka Client: registro del gateway en el servidor de descubrimiento -->
-        <dependency>
-            <groupId>org.springframework.cloud</groupId>
-            <artifactId>spring-cloud-starter-netflix-eureka-client</artifactId>
-        </dependency>
-
         <!-- Actuator: endpoints de salud y monitoreo -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
