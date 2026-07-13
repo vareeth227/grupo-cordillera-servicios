@@ -4,7 +4,7 @@
 #      O desde terminal: .\start-dev.ps1
 # ============================================================
 
-$baseDir = "d:\user\Desktop\Fullstack III"
+$baseDir = $PSScriptRoot
 
 Write-Host ""
 Write-Host "=====================================================" -ForegroundColor Cyan
@@ -15,7 +15,11 @@ Write-Host ""
 # Paso 1: Levantar las bases de datos con Docker
 Write-Host "[1/3] Levantando bases de datos PostgreSQL..." -ForegroundColor Yellow
 Set-Location $baseDir
-docker-compose -f docker-compose-db.yml up -d
+if (Get-Command docker-compose -ErrorAction SilentlyContinue) {
+    docker-compose -f docker-compose-db-only.yml up -d
+} else {
+    docker compose -f docker-compose-db-only.yml up -d
+}
 
 Write-Host ""
 Write-Host "      Esperando 15 segundos para que las BDs esten listas..." -ForegroundColor Gray
